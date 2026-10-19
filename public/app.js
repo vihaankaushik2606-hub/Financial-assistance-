@@ -15,8 +15,8 @@ async function api(path) {
 async function checkHealth() {
   try {
     const h = await api("/api/health");
-    $("apiStatus").textContent = h.providerConfigured ? "Backend ready · API key configured" : "Backend online · API key missing";
-    document.querySelector(".dot").style.background = h.providerConfigured ? "var(--green)" : "var(--amber)";
+    $("apiStatus").textContent = `Backend online · Market data: ${h.providerConfigured ? "ready" : "key missing"} · ChatGPT: ${h.aiConfigured ? "ready" : "key needed"}`;
+    document.querySelector(".dot").style.background = h.providerConfigured && h.aiConfigured ? "var(--green)" : "var(--amber)";
   } catch {
     $("apiStatus").textContent = "Backend unavailable";
     document.querySelector(".dot").style.background = "var(--red)";
