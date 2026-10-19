@@ -5,10 +5,25 @@ const path = require("path");
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const AV_URL = "https://www.alphavantage.co/query";
 
 app.use(express.json({ limit: "100kb" }));
 app.use(express.static(path.join(__dirname, "..", "public")));
+
+function safeProviderError(message) {
+  const text = String(message || "").toLowerCase();
+  if (text.includes("rate limit") || text.includes("frequency") || text.includes("call frequency") || text.includes("limit reached")) {
+    return "The market-data provider limit has been reached. Try again later or check your provider plan.";
+  }
+  if (text.includes("premium") || text.includes("entitlement") || text.includes("subscription")) {
+    return "This market-data endpoint may require a paid provider entitlement.";
+  }
+  if (text.includes("invalid api key") || text.includes("apikey is invalid") || text.includes("api key")) {
+    return "The market-data provider rejected its credentials. Check ALPHA_VANTAGE_API_KEY in Render environment settings.";
+  }
+  return "The market-data provider request failed. Check the Render logs and provider status.";
+}
 
 function validSymbol(value) {
   const symbol = String(value || "").trim().toUpperCase();
@@ -54,7 +69,7 @@ async function alphaVantage(params) {
     }
     const data = await response.json();
     if (data.Note || data.Information || data["Error Message"]) {
-      const err = new Error(data.Note || data.Information || data["Error Message"]);
+      const err = new Error(safeProviderError(data.Note || data.Information || data["Error Message"]));
       err.status = 502;
       throw err;
     }
@@ -138,6 +153,48 @@ app.get("/api/fundamentals", async (req, res) => {
     res.json({ symbol, source: "Alpha Vantage", fetchedAt: new Date().toISOString(), statements: Object.fromEntries(entries) });
   } catch (e) {
     res.status(e.status || 502).json({ error: e.message });
+  }
+});
+
+
+app.post("/api/ai-assist", async (req, res) => {
+  if (!OPENAI_API_KEY) {
+    return res.status(503).json({ error: "AI assistant is not configured yet. Add OPENAI_API_KEY to your Render environment variables." });
+  }
+  const question = String(req.body?.question || "").trim();
+  const context = String(req.body?.context || "").trim();
+  if (!question) return res.status(400).json({ error: "Enter a question for the AI finance assistant." });
+  if (question.length > 2000 || context.length > 6000) {
+    return res.status(400).json({ error: "Please shorten your question or analysis context and try again." });
+  }
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-4.1-mini",
+        instructions: "You are the AI Finance Lab educational finance research assistant. Explain financial concepts clearly, distinguish facts from assumptions, never claim fraud from ratios alone, never guarantee returns, and do not provide personalized investment recommendations. Encourage checking official filings and sources. Treat all user-provided company figures as unverified unless sourced.",
+        input: `User question:\n${question}\n\nOptional analysis context (may be user-entered and unverified):\n${context || "No additional context provided."}`,
+        max_output_tokens: 700
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const status = response.status;
+      if (status === 401 || status === 403) return res.status(502).json({ error: "The AI provider rejected the server credentials or access. Check OPENAI_API_KEY and project access in Render." });
+      if (status === 429) return res.status(429).json({ error: "The AI service is rate-limited or its API usage quota is exhausted. Check your API usage and billing settings." });
+      return res.status(502).json({ error: "The AI service could not complete this request. Check Render logs and the AI provider status." });
+    }
+    const answer = Array.isArray(data.output)
+      ? data.output.flatMap(item => Array.isArray(item.content) ? item.content : []).filter(item => item.type === "output_text").map(item => item.text).join("\n").trim()
+      : "";
+    if (!answer) return res.status(502).json({ error: "The AI service returned no text. Please try again." });
+    res.json({ answer });
+  } catch (_error) {
+    res.status(502).json({ error: "Could not reach the AI service. Please try again later." });
   }
 });
 
