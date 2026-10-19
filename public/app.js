@@ -63,6 +63,47 @@ $("fundamentalsBtn").addEventListener("click", async () => {
   finally { $("fundamentalsBtn").disabled = false; }
 });
 
+
+const autoCompanyInput = $("autoCompany");
+let autoAnalysisTimer = null;
+async function runAutomaticCompanyAnalysis() {
+  const company = autoCompanyInput.value.trim();
+  if (!company) return;
+  const button = $("autoAnalyzeBtn");
+  button.disabled = true;
+  $("autoAnalysisOutput").hidden = true;
+  $("autoAnalysisStatus").textContent = `Researching ${company}…`;
+  try {
+    const response = await fetch("/api/company-analysis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ company })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Automatic analysis failed.");
+    $("autoAnalysisOutput").textContent = data.answer;
+    $("autoAnalysisOutput").hidden = false;
+    $("autoAnalysisStatus").textContent = data.dataNote || "Analysis complete. Verify important figures against official company filings.";
+  } catch (error) {
+    $("autoAnalysisStatus").textContent = error.message || "Automatic analysis failed.";
+  } finally {
+    button.disabled = false;
+  }
+}
+$("autoAnalyzeBtn").addEventListener("click", runAutomaticCompanyAnalysis);
+autoCompanyInput.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    if (autoAnalysisTimer) clearTimeout(autoAnalysisTimer);
+    runAutomaticCompanyAnalysis();
+  }
+});
+autoCompanyInput.addEventListener("change", () => {
+  if (autoAnalysisTimer) clearTimeout(autoAnalysisTimer);
+  autoAnalysisTimer = setTimeout(runAutomaticCompanyAnalysis, 300);
+});
+
+
 const num = id => { const raw = $(id).value.trim(); return raw === "" ? null : Number(raw); };
 function calcRatios() {
   const revenue=num("revenue"), expenses=num("expenses"), profit=num("profit"), ocf=num("ocf"), debt=num("debt"), cash=num("cash");
