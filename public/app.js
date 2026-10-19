@@ -88,6 +88,50 @@ function calcRatios() {
   $("manualSource").textContent = `Source status: user-entered figures, not independently verified. ${period ? `Provided reporting period/source: ${period}.` : "Add a reporting period and source URL/reference before sharing this report."} Ratios are only comparable when definitions, currency, and periods match.`;
 }
 $("scanBtn").addEventListener("click",calcRatios);
+
+$("aiContextBtn").addEventListener("click", () => {
+  const fields = [
+    ["Revenue", "revenue"], ["Operating expenses", "expenses"], ["Net profit", "profit"],
+    ["Operating cash flow", "ocf"], ["Total debt", "debt"], ["Cash and equivalents", "cash"],
+    ["Prior-period revenue", "priorRevenue"], ["Prior-period net profit", "priorProfit"],
+    ["Reporting period/source", "period"]
+  ];
+  const context = fields.map(([label,id]) => {
+    const value = $(id).value.trim();
+    return value ? `${label}: ${value}` : null;
+  }).filter(Boolean).join("\n");
+  $("aiQuestion").value = $("aiQuestion").value.trim() || "Explain these figures and identify what I should verify in the company's official filings.";
+  $("aiQuestion").dataset.context = context;
+  $("aiStatus").textContent = context ? "Scanner values attached to the next AI request (not independently verified)." : "No scanner values entered yet. You can still ask a general finance question.";
+});
+
+$("aiAskBtn").addEventListener("click", async () => {
+  const question = $("aiQuestion").value.trim();
+  if (!question) {
+    $("aiStatus").textContent = "Enter a finance question first.";
+    return;
+  }
+  const button = $("aiAskBtn");
+  button.disabled = true;
+  $("aiAnswer").hidden = true;
+  $("aiStatus").textContent = "Asking the AI assistant…";
+  try {
+    const response = await fetch("/api/ai-assist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, context: $("aiQuestion").dataset.context || "" })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "The AI request failed.");
+    $("aiAnswer").textContent = data.answer;
+    $("aiAnswer").hidden = false;
+    $("aiStatus").textContent = "AI response received. Verify important claims against official filings and reliable sources.";
+  } catch (error) {
+    $("aiStatus").textContent = error.message || "Could not reach the AI assistant.";
+  } finally {
+    button.disabled = false;
+  }
+});
 $("clearBtn").addEventListener("click",()=>{
   ["revenue","expenses","profit","ocf","debt","cash","priorRevenue","priorProfit","period"].forEach(id=>$(id).value="");
   $("ratioCards").innerHTML=""; $("findings").innerHTML='<p class="muted">Enter figures and run the scanner to see calculated ratios and research prompts.</p>';
