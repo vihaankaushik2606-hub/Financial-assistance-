@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ai-finance-lab
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ALPHA_VANTAGE_API_KEY
+        sync: false
