@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Evidence-first company financial research dashboard">
+<title>AI Finance Lab — Company Truth Report</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><span class="logo">F</span><span><b>AI Finance Lab</b><small>Company Truth Report</small></span></a>
+  <div class="status"><span class="dot"></span><span id="apiStatus">Checking backend…</span></div>
+</header>
+<main class="container">
+  <section class="hero">
+    <div class="eyebrow">Research-first financial intelligence</div>
+    <h1>Look beyond the headline numbers.</h1>
+    <p>Explore financial performance, inspect potential warning signs, and test transparent scenarios. Every number should have a source and reporting period.</p>
+  </section>
+
+  <section class="panel">
+    <div class="section-title"><div><div class="eyebrow">01 / Company</div><h2>Build a report</h2></div><span class="tag">Live data is provider-dependent</span></div>
+    <div class="form-grid">
+      <label>Company / ticker
+        <input id="symbol" value="IBM" maxlength="24" placeholder="e.g. IBM">
+      </label>
+      <label>Market data source
+        <input value="Alpha Vantage via protected backend" disabled>
+      </label>
+    </div>
+    <div class="actions">
+      <button id="loadBtn" class="primary">Fetch market data</button>
+      <button id="fundamentalsBtn" class="secondary">Fetch financial statements</button>
+    </div>
+    <p id="message" class="notice" role="status">Waiting for request. Market data may be delayed and some symbols/endpoints may not be covered.</p>
+    <div id="marketCards" class="metrics"></div>
+    <div id="historySection" hidden>
+      <h3>Recent daily prices</h3>
+      <div class="table-wrap"><table><thead><tr><th>Date</th><th>Open</th><th>High</th><th>Low</th><th>Close</th><th>Volume</th></tr></thead><tbody id="historyRows"></tbody></table></div>
+    </div>
+    <div id="fundamentalsSection" hidden>
+      <h3>Financial statements</h3>
+      <p class="muted">Raw provider data is shown with availability labels. Do not treat unavailable fields as zero.</p>
+      <div id="fundamentalsOutput" class="statement-grid"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="section-title"><div><div class="eyebrow">02 / Manual analysis</div><h2>Company Truth Scanner</h2></div><span class="tag">Rule-based · not AI</span></div>
+    <p class="muted">Enter figures from a reliable filing. Use the same currency and matching reporting periods. The app will calculate ratios and identify patterns to investigate, not assert fraud or predict outcomes.</p>
+    <div class="form-grid three">
+      <label>Revenue (current period)<input id="revenue" type="number" min="0" step="any" placeholder="e.g. 1000"></label>
+      <label>Operating expenses<input id="expenses" type="number" min="0" step="any" placeholder="e.g. 760"></label>
+      <label>Net profit<input id="profit" type="number" step="any" placeholder="e.g. 120"></label>
+      <label>Operating cash flow<input id="ocf" type="number" step="any" placeholder="e.g. 70"></label>
+      <label>Total debt<input id="debt" type="number" min="0" step="any" placeholder="e.g. 250"></label>
+      <label>Cash & equivalents<input id="cash" type="number" min="0" step="any" placeholder="e.g. 90"></label>
+      <label>Prior-period revenue<input id="priorRevenue" type="number" min="0" step="any" placeholder="Optional"></label>
+      <label>Prior-period net profit<input id="priorProfit" type="number" step="any" placeholder="Optional"></label>
+      <label>Reporting period / source<input id="period" placeholder="e.g. FY2025, annual report URL"></label>
+    </div>
+    <div class="actions"><button id="scanBtn" class="primary">Analyze entered figures</button><button id="clearBtn" class="secondary">Clear figures</button></div>
+    <div id="ratioCards" class="metrics"></div>
+    <div id="findings" class="findings"><p class="muted">Enter figures and run the scanner to see calculated ratios and research prompts.</p></div>
+    <p id="manualSource" class="notice">Source status: figures have not been entered. Any manual figures remain unverified until you check the cited filing.</p>
+  </section>
+
+  <section class="panel">
+    <div class="section-title"><div><div class="eyebrow">03 / Scenario lab</div><h2>Test assumptions, not predictions</h2></div><span class="tag">Illustrative only</span></div>
+    <p class="muted">Scenarios calculate from your current-period revenue and assumed growth/margin. They are not target prices and are not forecasts unless independently justified.</p>
+    <div class="form-grid three">
+      <label>Bear case growth (%)<input id="bearGrowth" type="number" value="-5" step="1"></label>
+      <label>Base case growth (%)<input id="baseGrowth" type="number" value="5" step="1"></label>
+      <label>Bull case growth (%)<input id="bullGrowth" type="number" value="12" step="1"></label>
+      <label>Bear net margin (%)<input id="bearMargin" type="number" value="6" step="0.5"></label>
+      <label>Base net margin (%)<input id="baseMargin" type="number" value="10" step="0.5"></label>
+      <label>Bull net margin (%)<input id="bullMargin" type="number" value="13" step="0.5"></label>
+    </div>
+    <div class="actions"><button id="scenarioBtn" class="primary">Calculate scenarios</button></div>
+    <div id="scenarioCards" class="metrics"></div>
+  </section>
+  <footer><p>Educational research tool only. Not investment advice. Provider data may be delayed, incomplete, or subject to usage limits. Confirm important figures against official company filings and exchange disclosures.</p></footer>
+</main>
+<script src="/app.js" defer></script>
+</body>
+</html>
