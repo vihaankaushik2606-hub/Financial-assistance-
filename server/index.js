@@ -17,29 +17,58 @@ function validSymbol(value) {
   return symbol;
 }
 
+// Cache provider responses in memory so repeat visits do not burn the daily API quota.
+const providerCache = new Map();
+const providerRequestsInFlight = new Map();
+const CACHE_TTL_MS = {
+  GLOBAL_QUOTE: 15 * 60 * 1000,
+  TIME_SERIES_DAILY: 6 * 60 * 60 * 1000,
+  INCOME_STATEMENT: 24 * 60 * 60 * 1000,
+  BALANCE_SHEET: 24 * 60 * 60 * 1000,
+  CASH_FLOW: 24 * 60 * 60 * 1000
+};
+
 async function alphaVantage(params) {
   if (!API_KEY) {
     const err = new Error("Server API key is not configured. Set ALPHA_VANTAGE_API_KEY in the environment.");
     err.status = 503;
     throw err;
   }
-  const url = new URL(AV_URL);
-  for (const [key, value] of Object.entries({ ...params, apikey: API_KEY })) {
-    url.searchParams.set(key, value);
+
+  const cacheKey = JSON.stringify(params);
+  const now = Date.now();
+  const cached = providerCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.data;
+  if (providerRequestsInFlight.has(cacheKey)) return providerRequestsInFlight.get(cacheKey);
+
+  const request = (async () => {
+    const url = new URL(AV_URL);
+    for (const [key, value] of Object.entries({ ...params, apikey: API_KEY })) {
+      url.searchParams.set(key, value);
+    }
+    const response = await fetch(url, { headers: { "Accept": "application/json" } });
+    if (!response.ok) {
+      const err = new Error(`Data provider returned HTTP ${response.status}.`);
+      err.status = 502;
+      throw err;
+    }
+    const data = await response.json();
+    if (data.Note || data.Information || data["Error Message"]) {
+      const err = new Error(data.Note || data.Information || data["Error Message"]);
+      err.status = 502;
+      throw err;
+    }
+    const ttl = CACHE_TTL_MS[params.function] || 60 * 60 * 1000;
+    providerCache.set(cacheKey, { data, expiresAt: Date.now() + ttl });
+    return data;
+  })();
+
+  providerRequestsInFlight.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    providerRequestsInFlight.delete(cacheKey);
   }
-  const response = await fetch(url, { headers: { "Accept": "application/json" } });
-  if (!response.ok) {
-    const err = new Error(`Data provider returned HTTP ${response.status}.`);
-    err.status = 502;
-    throw err;
-  }
-  const data = await response.json();
-  if (data.Note || data.Information || data["Error Message"]) {
-    const err = new Error(data.Note || data.Information || data["Error Message"]);
-    err.status = 502;
-    throw err;
-  }
-  return data;
 }
 
 app.get("/api/health", (_req, res) => {
