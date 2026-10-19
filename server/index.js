@@ -87,7 +87,7 @@ async function alphaVantage(params) {
 }
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, providerConfigured: Boolean(API_KEY), service: "AI Finance Lab API" });
+  res.json({ ok: true, providerConfigured: Boolean(API_KEY), aiConfigured: Boolean(OPENAI_API_KEY), service: "AI Finance Lab API" });
 });
 
 app.get("/api/quote", async (req, res) => {
