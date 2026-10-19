@@ -198,6 +198,61 @@ app.post("/api/ai-assist", async (req, res) => {
   }
 });
 
+
+app.post("/api/company-analysis", async (req, res) => {
+  if (!OPENAI_API_KEY) {
+    return res.status(503).json({ error: "AI analysis is not configured. Add OPENAI_API_KEY to the Render environment." });
+  }
+  const company = String(req.body?.company || "").trim().slice(0, 120);
+  if (!company) return res.status(400).json({ error: "Enter a company name or ticker symbol." });
+
+  let providerContext = "No verified financial statements were retrieved from the market-data provider. Do not invent current figures.";
+  let dataNote = "";
+  const symbol = validSymbol(company);
+  if (symbol) {
+    try {
+      const response = await fetch(`${req.protocol}://127.0.0.1:${PORT}/api/fundamentals?symbol=${encodeURIComponent(symbol)}`);
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.statements) {
+        providerContext = JSON.stringify(data.statements).slice(0, 12000);
+        dataNote = "Provider statement data was retrieved where available; each statement's availability message must be respected.";
+      } else {
+        dataNote = String(data.error || "Provider statements were unavailable.");
+      }
+    } catch (_error) {
+      dataNote = "Could not retrieve provider statements.";
+    }
+  } else {
+    dataNote = "Input is a company name rather than a ticker. No automatic symbol lookup is available, so no provider statements were retrieved.";
+  }
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "gpt-4.1-mini",
+        instructions: "You are an educational company-finance research assistant. Give a concise company overview, explain what the available evidence does and does not show, discuss profitability, cash flow, debt, and key risks only when supported by supplied data. Clearly label general background knowledge versus supplied provider data. Never invent current financial figures, prices, filings, or citations. If data is missing, say so and request the correct stock ticker or official annual report. Do not claim fraud from ratios alone, guarantee returns, or provide personalized investment recommendations. End with a short checklist of facts to verify from official filings.",
+        input: `Analyze this company for an educational research report: ${company}\n\nProvider data status: ${dataNote}\n\nProvider statements (may be unavailable or incomplete):\n${providerContext}`,
+        max_output_tokens: 900
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) return res.status(502).json({ error: "The AI provider rejected the server credentials or access. Check OPENAI_API_KEY in Render." });
+      if (response.status === 429) return res.status(429).json({ error: "The AI service is rate-limited or its API usage quota is exhausted." });
+      return res.status(502).json({ error: "The AI service could not complete the analysis. Check Render logs." });
+    }
+    const answer = Array.isArray(data.output)
+      ? data.output.flatMap(item => Array.isArray(item.content) ? item.content : []).filter(item => item.type === "output_text").map(item => item.text).join("\n").trim()
+      : "";
+    if (!answer) return res.status(502).json({ error: "The AI service returned no analysis. Please try again." });
+    res.json({ company, answer, dataNote: dataNote || "Provider data status checked." });
+  } catch (_error) {
+    res.status(502).json({ error: "Could not reach the AI service. Please try again later." });
+  }
+});
+
 app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "..", "public", "index.html")));
 
 app.listen(PORT, () => {
