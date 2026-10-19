@@ -67,6 +67,17 @@
   </section>
 
   <section class="panel">
+    <div class="section-title"><div><div class="eyebrow">04 / AI assistant</div><h2>Ask ChatGPT about your analysis</h2></div><span class="tag">AI-assisted · verify answers</span></div>
+    <p class="muted">Ask for explanations of financial terms, ratios, or warning patterns. You can optionally include your scanner results. Do not enter passwords, API keys, or private information.</p>
+    <label>Your finance question
+      <textarea id="aiQuestion" rows="3" maxlength="2000" placeholder="e.g. Explain why operating cash flow can be lower than net profit."></textarea>
+    </label>
+    <div class="actions"><button id="aiAskBtn" class="primary">Ask ChatGPT</button><button id="aiContextBtn" class="secondary">Use my scanner results</button></div>
+    <p id="aiStatus" class="notice" role="status">AI assistant needs an OPENAI_API_KEY configured securely on the server.</p>
+    <article id="aiAnswer" class="finding" hidden></article>
+  </section>
+
+  <section class="panel">
     <div class="section-title"><div><div class="eyebrow">03 / Scenario lab</div><h2>Test assumptions, not predictions</h2></div><span class="tag">Illustrative only</span></div>
     <p class="muted">Scenarios calculate from your current-period revenue and assumed growth/margin. They are not target prices and are not forecasts unless independently justified.</p>
     <div class="form-grid three">
