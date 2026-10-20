@@ -135,7 +135,7 @@ app.get("/api/quote", async (req, res) => {
       "01. symbol": item.symbol || symbol,
       "05. price": item.price,
       "06. volume": item.volume,
-      "07. latest trading day": item.timestamp ? new Date(Number(item.timestamp) * 1000).toISOString().slice(0, 10) : item.lastUpdated || null,
+      "07. latest trading day": item.timestamp ? (Number.isFinite(Number(item.timestamp)) ? new Date(Number(item.timestamp) * 1000).toISOString().slice(0, 10) : String(item.timestamp).slice(0, 10)) : item.lastUpdated || null,
       "09. change": item.change,
       "10. change percent": item.changePercentage === undefined ? null : `${item.changePercentage}%`,
       raw: item
@@ -151,8 +151,9 @@ app.get("/api/daily", async (req, res) => {
   if (!symbol) return res.status(400).json({ error: "Provide a valid ticker symbol." });
   try {
     const data = await fmpRequest("historical-price-eod/full", { symbol });
-    if (!Array.isArray(data)) return res.status(404).json({ error: "No daily prices returned for this symbol.", symbol });
-    const rows = data.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 100).map(item => ({
+    const historical = Array.isArray(data) ? data : Array.isArray(data?.historical) ? data.historical : [];
+    if (!historical.length) return res.status(404).json({ error: "No daily prices returned for this symbol. Check FMP plan and symbol coverage.", symbol });
+    const rows = historical.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 100).map(item => ({
       date: item.date,
       open: item.open,
       high: item.high,
