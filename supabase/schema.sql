@@ -2,7 +2,7 @@
 create table if not exists public.analysis_history (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),
-  kind text not null check (kind in ('ai-assistant', 'company-analysis')),
+  kind text not null check (kind in ('ai-assistant', 'company-analysis', 'manual-analysis')),
   title text not null check (char_length(title) <= 160),
   content text not null check (char_length(content) <= 12000),
   created_at timestamptz not null default now()
