@@ -6,10 +6,45 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\\/$/, "");
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const AV_URL = "https://www.alphavantage.co/query";
 
 app.use(express.json({ limit: "100kb" }));
 app.use(express.static(path.join(__dirname, "..", "public")));
+
+app.get("/api/config", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json({ supabaseUrl: SUPABASE_URL || null, supabaseAnonKey: SUPABASE_ANON_KEY || null, authConfigured: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY) });
+});
+
+async function requireAuth(req, res, next) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return res.status(503).json({ error: "Accounts are not configured yet. Finish the Supabase setup in the deployment guide." });
+  const match = /^Bearer\\s+(.+)$/i.exec(req.get("authorization") || "");
+  if (!match) return res.status(401).json({ error: "Please sign in to use the AI features." });
+  try {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${match[1]}` } });
+    if (!response.ok) return res.status(401).json({ error: "Your session is invalid or expired. Please sign in again." });
+    const user = await response.json();
+    if (!user || typeof user.id !== "string") return res.status(401).json({ error: "Please sign in to use the AI features." });
+    req.authUser = { id: user.id };
+    next();
+  } catch (_error) {
+    return res.status(503).json({ error: "Could not verify your account right now. Please try again." });
+  }
+}
+
+const aiRequestBuckets = new Map();
+function limitAiRequests(req, res, next) {
+  const key = req.authUser?.id || req.ip;
+  const now = Date.now();
+  const bucket = aiRequestBuckets.get(key) || { start: now, count: 0 };
+  if (now - bucket.start > 60 * 60 * 1000) { bucket.start = now; bucket.count = 0; }
+  bucket.count += 1;
+  aiRequestBuckets.set(key, bucket);
+  if (bucket.count > 30) return res.status(429).json({ error: "AI usage limit reached for this account. Please try again later." });
+  next();
+}
 
 function safeProviderError(message) {
   const text = String(message || "").toLowerCase();
@@ -87,7 +122,7 @@ async function alphaVantage(params) {
 }
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, providerConfigured: Boolean(API_KEY), aiConfigured: Boolean(OPENAI_API_KEY), service: "AI Finance Lab API" });
+  res.json({ ok: true, providerConfigured: Boolean(API_KEY), aiConfigured: Boolean(OPENAI_API_KEY), authConfigured: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY), service: "AI Finance Lab API" });
 });
 
 app.get("/api/quote", async (req, res) => {
@@ -157,7 +192,7 @@ app.get("/api/fundamentals", async (req, res) => {
 });
 
 
-app.post("/api/ai-assist", async (req, res) => {
+app.post("/api/ai-assist", requireAuth, limitAiRequests, async (req, res) => {
   if (!OPENAI_API_KEY) {
     return res.status(503).json({ error: "AI assistant is not configured yet. Add OPENAI_API_KEY to your Render environment variables." });
   }
@@ -199,7 +234,7 @@ app.post("/api/ai-assist", async (req, res) => {
 });
 
 
-app.post("/api/company-analysis", async (req, res) => {
+app.post("/api/company-analysis", requireAuth, limitAiRequests, async (req, res) => {
   if (!OPENAI_API_KEY) {
     return res.status(503).json({ error: "AI analysis is not configured. Add OPENAI_API_KEY to the Render environment." });
   }
@@ -211,7 +246,7 @@ app.post("/api/company-analysis", async (req, res) => {
   const symbol = validSymbol(company);
   if (symbol) {
     try {
-      const response = await fetch(`${req.protocol}://127.0.0.1:${PORT}/api/fundamentals?symbol=${encodeURIComponent(symbol)}`);
+      const response = await fetch(`http://127.0.0.1:${PORT}/api/fundamentals?symbol=${encodeURIComponent(symbol)}`);
       const data = await response.json().catch(() => ({}));
       if (response.ok && data.statements) {
         providerContext = JSON.stringify(data.statements).slice(0, 12000);
