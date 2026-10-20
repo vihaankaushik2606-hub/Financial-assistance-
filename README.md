@@ -7,7 +7,7 @@ A research-first financial analysis dashboard for public companies. It calculate
 - Financial statement input and financial ratio calculations
 - Rule-based "Company Truth Scanner" for research prompts
 - Transparent scenario calculator
-- Optional market quote/history integration through a backend API
+- Market quotes, historical prices, and financial statements through Financial Modeling Prep
 - Source/status labels and error states
 - Responsive dark UI
 
@@ -15,8 +15,8 @@ A research-first financial analysis dashboard for public companies. It calculate
 
 - The browser app does **not** contain an API key.
 - Never commit API keys, `.env` files, tokens, or secrets to GitHub.
-- The backend proxy in `server/` reads `ALPHA_VANTAGE_API_KEY` from an environment variable.
-- Alpha Vantage endpoint access and rate limits depend on your account and provider plan.
+- The backend proxy in `server/` reads `FMP_API_KEY` from an environment variable. The key is only used server-side.
+- Financial Modeling Prep endpoint access and rate limits depend on your account and provider plan.
 - A successful quote does not guarantee that financial statements are available for the same symbol.
 - Do not present illustrative/user-entered values as verified financial data.
 - This is educational software, not financial advice or a buy/sell recommendation.
@@ -46,7 +46,7 @@ Copy-Item .env.example .env
 ### GitHub
 1. Upload all files in this repository, including `package.json`, `server/`, `public/`, and `.gitignore`.
 2. Do **not** upload `.env`.
-3. For production, deploy the Node backend to a server host that supports environment variables. Set `ALPHA_VANTAGE_API_KEY` in that host's environment settings.
+3. For production, deploy the Node backend to a server host that supports environment variables. Set `FMP_API_KEY` in that host's environment settings.
 4. Set `API_BASE_URL` in `public/app.js` to your deployed backend URL if it is different from the same-origin `/api` route.
 
 GitHub Pages cannot run the Node backend. You may host the static frontend on GitHub Pages, but the API must run elsewhere. Do not put the secret key in the frontend to make GitHub Pages work.
@@ -54,9 +54,9 @@ GitHub Pages cannot run the Node backend. You may host the static frontend on Gi
 ## API endpoints
 
 - `GET /api/health` — server status
-- `GET /api/quote?symbol=IBM` — Alpha Vantage global quote
-- `GET /api/daily?symbol=IBM` — compact daily time series
-- `GET /api/fundamentals?symbol=IBM` — income statement, balance sheet, cash flow; individual endpoints may be unavailable due to provider permissions/coverage
+- `GET /api/quote?symbol=IBM` — FMP quote
+- `GET /api/daily?symbol=IBM` — historical daily prices
+- `GET /api/fundamentals?symbol=IBM` — income statement, balance sheet, and cash flow; annual and quarterly data depend on FMP plan/coverage
 
 ## Suggested next steps
 
@@ -80,7 +80,7 @@ This project uses Supabase Auth for email/password and Google sign-in, plus a Po
    - `SUPABASE_URL` = your Supabase project URL
    - `SUPABASE_ANON_KEY` = your Supabase anon/public key
    - `OPENAI_API_KEY` = your OpenAI API key
-   - `ALPHA_VANTAGE_API_KEY` = your Alpha Vantage key
+   - `FMP_API_KEY` = your Financial Modeling Prep key
    Then redeploy/restart the service. Never put secret keys in frontend files, commits, screenshots, or chat.
 6. Visit the live site, create an account, and test email sign-in first. Test Google only after completing its provider setup.
 
@@ -93,3 +93,8 @@ This project uses Supabase Auth for email/password and Google sign-in, plus a Po
 - The app stores AI answers and signed-in users' manual scanner results under that user's account; passwords and API keys are never stored in the history table. Avoid entering sensitive personal data.
 - Email confirmation settings can require users to verify their email before their first sign-in.
 - The in-memory rate limit resets on server restart and is not shared across multiple server instances; treat it as a basic safeguard, not a complete abuse-prevention system.
+
+
+## Financial Modeling Prep market data
+
+Market-data calls use FMP's Stable API from the server: `/stable/quote`, `/stable/historical-price-eod/full`, `/stable/income-statement`, `/stable/balance-sheet-statement`, and `/stable/cash-flow-statement`. Set `FMP_API_KEY` in Render's environment settings; never put the key in frontend code or GitHub. FMP endpoint access, historical coverage, and annual/quarterly statement availability depend on your FMP plan. The API endpoints are normalized to the existing dashboard response format so the current frontend can continue working.
