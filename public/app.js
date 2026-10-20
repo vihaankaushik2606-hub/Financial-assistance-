@@ -146,7 +146,7 @@ $("loadBtn").addEventListener("click", async () => {
     const [q,d] = await Promise.all([api(`/api/quote?symbol=${encodeURIComponent(symbol())}`),api(`/api/daily?symbol=${encodeURIComponent(symbol())}`)]);
     const x = q.quote || {}, rows = d.rows || [];
     $("marketCards").innerHTML = [
-      metric("Ticker",q.symbol,"Source: Alpha Vantage"),
+      metric("Ticker",q.symbol,"Source: Financial Modeling Prep"),
       metric("Latest available price",x["05. price"] || "Unavailable", "Provider quote; not guaranteed real-time"),
       metric("Change",x["09. change"] || "—",x["10. change percent"] || ""),
       metric("Latest trading day",x["07. latest trading day"] || rows[0]?.date || "—"),
