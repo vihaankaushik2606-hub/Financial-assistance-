@@ -220,6 +220,7 @@ autoCompanyInput.addEventListener("change", () => {
 
 
 const num = id => { const raw = $(id).value.trim(); return raw === "" ? null : Number(raw); };
+function fieldsForHistory() { return ["revenue","expenses","profit","ocf","debt","cash","priorRevenue","priorProfit","period"].map(id => `${id}: ${$(id).value.trim() || "not entered"}`).join("\n"); }
 function calcRatios() {
   const revenue=num("revenue"), expenses=num("expenses"), profit=num("profit"), ocf=num("ocf"), debt=num("debt"), cash=num("cash");
   const priorRevenue=num("priorRevenue"), priorProfit=num("priorProfit");
@@ -242,6 +243,7 @@ function calcRatios() {
   $("findings").innerHTML = findings.map(([kind,title,body])=>`<article class="finding ${kind}"><b>${esc(title)}</b><p>${esc(body)}</p></article>`).join("");
   const period=$("period").value.trim();
   $("manualSource").textContent = `Source status: user-entered figures, not independently verified. ${period ? `Provided reporting period/source: ${period}.` : "Add a reporting period and source URL/reference before sharing this report."} Ratios are only comparable when definitions, currency, and periods match.`;
+  if (currentSession) savePrivateHistory("manual-analysis", "Manual company truth scan", `${fieldsForHistory() }\n\n${$("findings").innerText}`);
 }
 $("scanBtn").addEventListener("click",calcRatios);
 
