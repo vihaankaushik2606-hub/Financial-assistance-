@@ -189,13 +189,14 @@ async function runAutomaticCompanyAnalysis() {
   try {
     const response = await fetch("/api/company-analysis", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${await getAccessToken()}` },
       body: JSON.stringify({ company })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Automatic analysis failed.");
     $("autoAnalysisOutput").textContent = data.answer;
     $("autoAnalysisOutput").hidden = false;
+    await savePrivateHistory("company-analysis", company, data.answer);
     $("autoAnalysisStatus").textContent = data.dataNote || "Analysis complete. Verify important figures against official company filings.";
   } catch (error) {
     $("autoAnalysisStatus").textContent = error.message || "Automatic analysis failed.";
@@ -272,13 +273,14 @@ $("aiAskBtn").addEventListener("click", async () => {
   try {
     const response = await fetch("/api/ai-assist", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${await getAccessToken()}` },
       body: JSON.stringify({ question, context: $("aiQuestion").dataset.context || "" })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "The AI request failed.");
     $("aiAnswer").textContent = data.answer;
     $("aiAnswer").hidden = false;
+    await savePrivateHistory("ai-assistant", question, data.answer);
     $("aiStatus").textContent = "AI response received. Verify important claims against official filings and reliable sources.";
   } catch (error) {
     $("aiStatus").textContent = error.message || "Could not reach the AI assistant.";
