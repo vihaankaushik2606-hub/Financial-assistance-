@@ -6,7 +6,7 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\\/$/, "");
+const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const AV_URL = "https://www.alphavantage.co/query";
 
@@ -20,7 +20,7 @@ app.get("/api/config", (_req, res) => {
 
 async function requireAuth(req, res, next) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return res.status(503).json({ error: "Accounts are not configured yet. Finish the Supabase setup in the deployment guide." });
-  const match = /^Bearer\\s+(.+)$/i.exec(req.get("authorization") || "");
+  const match = /^Bearer\s+(.+)$/i.exec(req.get("authorization") || "");
   if (!match) return res.status(401).json({ error: "Please sign in to use the AI features." });
   try {
     const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${match[1]}` } });
