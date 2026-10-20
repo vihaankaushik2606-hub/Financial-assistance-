@@ -90,6 +90,6 @@ This project uses Supabase Auth for email/password and Google sign-in, plus a Po
 - AI answers are saved to Supabase under the signed-in user's account. Database RLS isolates each user's history; the app does not give one user access to another user's records.
 - Market quote/history and the manual calculator remain available without an account. AI assistant and automatic company analysis require sign-in.
 - The OpenAI API is billed separately from a ChatGPT subscription. Set billing/usage limits in your OpenAI platform account before inviting other people.
-- The app stores the AI response and its short title, not the user's password or API key. Avoid sending sensitive personal data in questions.
+- The app stores AI answers and signed-in users' manual scanner results under that user's account; passwords and API keys are never stored in the history table. Avoid entering sensitive personal data.
 - Email confirmation settings can require users to verify their email before their first sign-in.
 - The in-memory rate limit resets on server restart and is not shared across multiple server instances; treat it as a basic safeguard, not a complete abuse-prevention system.
