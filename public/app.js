@@ -113,7 +113,8 @@ $("googleSignInBtn").addEventListener("click", () => runAuthAction("google"));
 $("signOutBtn").addEventListener("click", () => runAuthAction("signout"));
 $("refreshHistoryBtn").addEventListener("click", loadPrivateHistory);
 initAccount();
-\nconst esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? Number(v).toLocaleString(undefined,{maximumFractionDigits:digits}) : "—";
 const moneyish = (v) => fmt(v);
 function metric(label, value, sub="") {
