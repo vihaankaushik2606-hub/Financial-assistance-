@@ -10,7 +10,7 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: ALPHA_VANTAGE_API_KEY
+      - key: FMP_API_KEY
         sync: false
       - key: OPENAI_API_KEY
         sync: false
