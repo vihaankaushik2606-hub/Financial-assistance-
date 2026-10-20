@@ -4,11 +4,11 @@ const path = require("path");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
+const FMP_API_KEY = process.env.FMP_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const AV_URL = "https://www.alphavantage.co/query";
+const FMP_BASE_URL = "https://financialmodelingprep.com/stable";
 
 app.use(express.json({ limit: "100kb" }));
 app.use(express.static(path.join(__dirname, "..", "public")));
@@ -55,7 +55,7 @@ function safeProviderError(message) {
     return "This market-data endpoint may require a paid provider entitlement.";
   }
   if (text.includes("invalid api key") || text.includes("apikey is invalid") || text.includes("api key")) {
-    return "The market-data provider rejected its credentials. Check ALPHA_VANTAGE_API_KEY in Render environment settings.";
+    return "The market-data provider rejected its credentials. Check FMP_API_KEY in Render environment settings.";
   }
   return "The market-data provider request failed. Check the Render logs and provider status.";
 }
@@ -67,74 +67,80 @@ function validSymbol(value) {
   return symbol;
 }
 
-// Cache provider responses in memory so repeat visits do not burn the daily API quota.
+// Cache FMP responses in memory to reduce repeated provider requests.
 const providerCache = new Map();
 const providerRequestsInFlight = new Map();
 const CACHE_TTL_MS = {
-  GLOBAL_QUOTE: 15 * 60 * 1000,
-  TIME_SERIES_DAILY: 6 * 60 * 60 * 1000,
-  INCOME_STATEMENT: 24 * 60 * 60 * 1000,
-  BALANCE_SHEET: 24 * 60 * 60 * 1000,
-  CASH_FLOW: 24 * 60 * 60 * 1000
+  quote: 15 * 60 * 1000,
+  "historical-price-eod/full": 6 * 60 * 60 * 1000,
+  "income-statement": 24 * 60 * 60 * 1000,
+  "balance-sheet-statement": 24 * 60 * 60 * 1000,
+  "cash-flow-statement": 24 * 60 * 60 * 1000
 };
 
-async function alphaVantage(params) {
-  if (!API_KEY) {
-    const err = new Error("Server API key is not configured. Set ALPHA_VANTAGE_API_KEY in the environment.");
+async function fmpRequest(endpoint, params = {}) {
+  if (!FMP_API_KEY) {
+    const err = new Error("Market-data provider is not configured. Set FMP_API_KEY in Render environment settings.");
     err.status = 503;
     throw err;
   }
-
-  const cacheKey = JSON.stringify(params);
-  const now = Date.now();
+  const cacheKey = JSON.stringify({ endpoint, params });
   const cached = providerCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) return cached.data;
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
   if (providerRequestsInFlight.has(cacheKey)) return providerRequestsInFlight.get(cacheKey);
 
   const request = (async () => {
-    const url = new URL(AV_URL);
-    for (const [key, value] of Object.entries({ ...params, apikey: API_KEY })) {
-      url.searchParams.set(key, value);
+    const url = new URL(`${FMP_BASE_URL}/${endpoint}`);
+    for (const [key, value] of Object.entries({ ...params, apikey: FMP_API_KEY })) {
+      if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
     }
-    const response = await fetch(url, { headers: { "Accept": "application/json" } });
-    if (!response.ok) {
-      const err = new Error(`Data provider returned HTTP ${response.status}.`);
+    const response = await fetch(url, { headers: { Accept: "application/json" } });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || (data && !Array.isArray(data) && (data["Error Message"] || data.error || data["Error"]))) {
+      const detail = data?.["Error Message"] || data?.error || data?.["Error"] || `HTTP ${response.status}`;
+      const err = new Error(safeProviderError(detail));
+      err.status = response.status === 401 || response.status === 403 ? 502 : response.status === 429 ? 429 : 502;
+      throw err;
+    }
+    if (data === null) {
+      const err = new Error("The market-data provider returned an unreadable response.");
       err.status = 502;
       throw err;
     }
-    const data = await response.json();
-    if (data.Note || data.Information || data["Error Message"]) {
-      const err = new Error(safeProviderError(data.Note || data.Information || data["Error Message"]));
-      err.status = 502;
-      throw err;
-    }
-    const ttl = CACHE_TTL_MS[params.function] || 60 * 60 * 1000;
+    const ttl = CACHE_TTL_MS[endpoint] || 60 * 60 * 1000;
     providerCache.set(cacheKey, { data, expiresAt: Date.now() + ttl });
     return data;
   })();
-
   providerRequestsInFlight.set(cacheKey, request);
-  try {
-    return await request;
-  } finally {
-    providerRequestsInFlight.delete(cacheKey);
-  }
+  try { return await request; }
+  finally { providerRequestsInFlight.delete(cacheKey); }
+}
+
+function fmpStatementRows(data) {
+  return Array.isArray(data) ? data.slice(0, 8) : [];
 }
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, providerConfigured: Boolean(API_KEY), aiConfigured: Boolean(OPENAI_API_KEY), authConfigured: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY), service: "AI Finance Lab API" });
+  res.json({ ok: true, providerConfigured: Boolean(FMP_API_KEY), aiConfigured: Boolean(OPENAI_API_KEY), authConfigured: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY), service: "AI Finance Lab API", marketDataProvider: "Financial Modeling Prep" });
 });
 
 app.get("/api/quote", async (req, res) => {
   const symbol = validSymbol(req.query.symbol);
   if (!symbol) return res.status(400).json({ error: "Provide a valid ticker symbol." });
   try {
-    const data = await alphaVantage({ function: "GLOBAL_QUOTE", symbol });
-    const quote = data["Global Quote"] || {};
-    if (!Object.keys(quote).length) {
-      return res.status(404).json({ error: "No quote returned for this symbol. Check symbol format, coverage, and provider permissions.", symbol });
-    }
-    res.json({ symbol, source: "Alpha Vantage", fetchedAt: new Date().toISOString(), quote });
+    const data = await fmpRequest("quote", { symbol });
+    const item = Array.isArray(data) ? data[0] : null;
+    if (!item || item.price === undefined) return res.status(404).json({ error: "No quote returned for this symbol. Check symbol format, provider coverage, and your FMP plan.", symbol });
+    const quote = {
+      "01. symbol": item.symbol || symbol,
+      "05. price": item.price,
+      "06. volume": item.volume,
+      "07. latest trading day": item.timestamp ? new Date(Number(item.timestamp) * 1000).toISOString().slice(0, 10) : item.lastUpdated || null,
+      "09. change": item.change,
+      "10. change percent": item.changePercentage === undefined ? null : `${item.changePercentage}%`,
+      raw: item
+    };
+    res.json({ symbol, source: "Financial Modeling Prep", fetchedAt: new Date().toISOString(), quote });
   } catch (e) {
     res.status(e.status || 502).json({ error: e.message });
   }
@@ -144,19 +150,18 @@ app.get("/api/daily", async (req, res) => {
   const symbol = validSymbol(req.query.symbol);
   if (!symbol) return res.status(400).json({ error: "Provide a valid ticker symbol." });
   try {
-    const data = await alphaVantage({ function: "TIME_SERIES_DAILY", symbol, outputsize: "compact" });
-    const seriesKey = Object.keys(data).find(k => k.toLowerCase().includes("time series"));
-    if (!seriesKey) return res.status(404).json({ error: "No daily prices returned for this symbol.", symbol });
-    const series = data[seriesKey];
-    const rows = Object.keys(series).sort().reverse().slice(0, 100).map(date => ({
-      date,
-      open: series[date]["1. open"],
-      high: series[date]["2. high"],
-      low: series[date]["3. low"],
-      close: series[date]["4. close"],
-      volume: series[date]["5. volume"]
+    const data = await fmpRequest("historical-price-eod/full", { symbol });
+    if (!Array.isArray(data)) return res.status(404).json({ error: "No daily prices returned for this symbol.", symbol });
+    const rows = data.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 100).map(item => ({
+      date: item.date,
+      open: item.open,
+      high: item.high,
+      low: item.low,
+      close: item.close,
+      volume: item.volume
     }));
-    res.json({ symbol, source: "Alpha Vantage", fetchedAt: new Date().toISOString(), rows });
+    if (!rows.length) return res.status(404).json({ error: "No daily prices returned for this symbol.", symbol });
+    res.json({ symbol, source: "Financial Modeling Prep", fetchedAt: new Date().toISOString(), rows });
   } catch (e) {
     res.status(e.status || 502).json({ error: e.message });
   }
@@ -166,31 +171,33 @@ app.get("/api/fundamentals", async (req, res) => {
   const symbol = validSymbol(req.query.symbol);
   if (!symbol) return res.status(400).json({ error: "Provide a valid ticker symbol." });
   const endpoints = [
-    ["incomeStatement", "INCOME_STATEMENT"],
-    ["balanceSheet", "BALANCE_SHEET"],
-    ["cashFlow", "CASH_FLOW"]
+    ["incomeStatement", "income-statement"],
+    ["balanceSheet", "balance-sheet-statement"],
+    ["cashFlow", "cash-flow-statement"]
   ];
   try {
-    // Fetch separately so one unavailable endpoint does not erase successful results.
-    const entries = await Promise.all(endpoints.map(async ([label, fn]) => {
+    const entries = await Promise.all(endpoints.map(async ([label, endpoint]) => {
       try {
-        const data = await alphaVantage({ function: fn, symbol });
-        const annual = Array.isArray(data.annualReports) ? data.annualReports : [];
-        const quarterly = Array.isArray(data.quarterlyReports) ? data.quarterlyReports : [];
-        if (!annual.length && !quarterly.length) {
-          return [label, { available: false, message: "No statement records returned; check provider access and symbol coverage." }];
+        const [annualResult, quarterlyResult] = await Promise.allSettled([
+          fmpRequest(endpoint, { symbol, period: "annual", limit: 5 }),
+          fmpRequest(endpoint, { symbol, period: "quarter", limit: 8 })
+        ]);
+        const annualReports = annualResult.status === "fulfilled" ? fmpStatementRows(annualResult.value) : [];
+        const quarterlyReports = quarterlyResult.status === "fulfilled" ? fmpStatementRows(quarterlyResult.value) : [];
+        if (!annualReports.length && !quarterlyReports.length) {
+          const reason = annualResult.status === "rejected" ? annualResult.reason?.message : quarterlyResult.status === "rejected" ? quarterlyResult.reason?.message : "No statement records returned; check FMP plan and symbol coverage.";
+          return [label, { available: false, message: reason || "No statement records returned." }];
         }
-        return [label, { available: true, source: "Alpha Vantage", annualReports: annual.slice(0, 5), quarterlyReports: quarterly.slice(0, 8) }];
+        return [label, { available: true, source: "Financial Modeling Prep", annualReports, quarterlyReports }];
       } catch (e) {
         return [label, { available: false, message: e.message }];
       }
     }));
-    res.json({ symbol, source: "Alpha Vantage", fetchedAt: new Date().toISOString(), statements: Object.fromEntries(entries) });
+    res.json({ symbol, source: "Financial Modeling Prep", fetchedAt: new Date().toISOString(), statements: Object.fromEntries(entries) });
   } catch (e) {
     res.status(e.status || 502).json({ error: e.message });
   }
 });
-
 
 app.post("/api/ai-assist", requireAuth, limitAiRequests, async (req, res) => {
   if (!OPENAI_API_KEY) {
