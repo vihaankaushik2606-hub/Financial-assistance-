@@ -98,6 +98,28 @@ $("loadBtn")?.addEventListener("click", async () => {
   if (marketCards) marketCards.innerHTML = "";
 
   try {
+    const ticker = encodeURIComponent(symbol());
+    const [quoteResult, dailyResult] = await Promise.allSettled([api(`/api/quote?symbol=${ticker}`), api(`/api/daily?symbol=${ticker}`)]);
+    const rows = dailyResult.status === "fulfilled" ? dailyResult.value.rows || [] : [];
+    if (quoteResult.status === "fulfilled") {
+      const q = quoteResult.value, x = q.quote || {};
+      $("marketCards").innerHTML = [
+        metric("Ticker", q.symbol, "Source: Financial Modeling Prep"),
+        metric("Latest available price", x["05. price"] ?? "Unavailable", "Provider quote; not guaranteed real-time"),
+        metric("Change", x["09. change"] ?? "—", x["10. change percent"] ?? ""),
+        metric("Latest trading day", x["07. latest trading day"] ?? "—"),
+        metric("Volume", x["06. volume"] ?? "—"),
+        metric("Fetched at", new Date(q.fetchedAt).toLocaleString(), "Provider data can be delayed")
+      ].join("");
+    }
+    $("historyRows").innerHTML = rows.slice(0,20).map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.open)}</td><td>${esc(r.high)}</td><td>${esc(r.low)}</td><td>${esc(r.close)}</td><td>${esc(r.volume)}</td></tr>`).join("");
+    $("historySection").hidden = rows.length === 0;
+    const errors = [];
+    if (quoteResult.status === "rejected") errors.push(`Quote unavailable: ${quoteResult.reason.message}`);
+    if (dailyResult.status === "rejected") errors.push(`Daily prices unavailable: ${dailyResult.reason.message}`);
+    $("message").textContent = errors.length ? errors.join(" ") : "Market data fetched. Verify the symbol, currency, trading date, and provider terms before relying on it.";
+  } catch(e) { $("message").textContent = `Could not fetch market data: ${e.message}`; }
+  finally { $("loadBtn").disabled = false; }
     const q = await api(`/api/quote?symbol=${encodeURIComponent(requestedSymbol)}`);
     const x = q.quote?.raw || {};
     const timestamp = x.timestamp ? new Date(Number(x.timestamp) * 1000) : null;
@@ -272,6 +294,11 @@ $("fundamentalsBtn")?.addEventListener("click", async () => {
 
 // 02 / Automatic Company Analysis
 const autoCompanyInput = $("autoCompany");
+let autoAnalysisInFlight = false;
+async function runAutomaticCompanyAnalysis() {
+  const company = autoCompanyInput.value.trim();
+  if (!company || autoAnalysisInFlight) return;
+  autoAnalysisInFlight = true;
 async function runAutomaticCompanyAnalysis() {
   const company = autoCompanyInput?.value.trim();
   const button = $("autoAnalyzeBtn");
@@ -316,6 +343,8 @@ async function runAutomaticCompanyAnalysis() {
   } catch (error) {
     if (statusEl) statusEl.textContent = error.message || "Automatic analysis failed.";
   } finally {
+    autoAnalysisInFlight = false;
+    button.disabled = false;
     if (button) button.disabled = false;
   }
 }
@@ -343,6 +372,28 @@ function fieldsForHistory() {
 }
 
 function calcRatios() {
+  const revenue=num("revenue"), expenses=num("expenses"), profit=num("profit"), ocf=num("ocf"), debt=num("debt"), cash=num("cash");
+  const priorRevenue=num("priorRevenue"), priorProfit=num("priorProfit");
+  const out=[];
+  if (revenue !== null && revenue > 0 && profit !== null) out.push(metric("Net profit margin",`${fmt(profit/revenue*100)}%`,"Net profit ÷ revenue"));
+  if (revenue !== null && revenue > 0 && expenses !== null) out.push(metric("Expense ratio",`${fmt(expenses/revenue*100)}%`,"Operating expenses ÷ revenue"));
+  if (profit !== null && ocf !== null) out.push(metric("Operating cash flow",moneyish(ocf),"Compare with profit across matching periods"));
+  if (debt !== null && cash !== null) out.push(metric("Net debt",moneyish(debt-cash),"Debt minus cash; same units required"));
+  if (revenue > 0 && priorRevenue !== null && priorRevenue > 0) out.push(metric("Revenue growth",`${fmt((revenue/priorRevenue-1)*100)}%`,"Current vs prior period"));
+  if (profit !== null && priorProfit !== null && priorProfit !== 0) out.push(metric("Profit change",`${fmt((profit-priorProfit)/Math.abs(priorProfit)*100)}%`,"Change ÷ absolute prior profit; positive means improvement"));
+  $("ratioCards").innerHTML = out.join("");
+  const findings=[];
+  if (profit !== null && ocf !== null && profit > 0 && ocf < 0) findings.push(["alert","Positive profit but negative operating cash flow","Investigate working capital, receivables, one-off items, and cash-flow statement notes. This pattern is a prompt, not proof of misconduct."]);
+  if (profit !== null && ocf !== null && profit > 0 && ocf >= 0 && ocf < profit*.5) findings.push(["warn","Cash flow materially below profit","Check whether this is temporary, seasonal, or driven by working capital and non-cash accounting items."]);
+  if (debt !== null && cash !== null && debt > cash*3) findings.push(["warn","Debt substantially exceeds cash","Review maturity schedule, interest costs, covenants, and operating cash generation."]);
+  if (revenue > 0 && expenses !== null && expenses > revenue) findings.push(["warn","Entered expenses exceed revenue","Check whether expenses use the same period and definition as revenue."]);
+  if (revenue > 0 && priorRevenue !== null && priorRevenue > 0 && profit !== null && priorProfit !== null && revenue > priorRevenue && profit < priorProfit) findings.push(["warn","Revenue rose while profit fell","Investigate margin pressure, higher costs, financing costs, and exceptional items."]);
+  if (revenue > 0 && priorRevenue !== null && priorRevenue > 0 && profit !== null && priorProfit !== null && revenue < priorRevenue && profit > priorProfit) findings.push(["warn","Profit rose while revenue fell","Check one-off gains, cost cuts, asset sales, and accounting notes."]);
+  if (!findings.length) findings.push(["good","No configured pattern flagged","This does not establish that a company is financially healthy. Review filings, peer data, footnotes, and multiple periods."]);
+  $("findings").innerHTML = findings.map(([kind,title,body])=>`<article class="finding ${kind}"><b>${esc(title)}</b><p>${esc(body)}</p></article>`).join("");
+  const period=$("period").value.trim();
+  $("manualSource").textContent = `Source status: user-entered figures, not independently verified. ${period ? `Provided reporting period/source: ${period}.` : "Add a reporting period and source URL/reference before sharing this report."} Ratios are only comparable when definitions, currency, and periods match.`;
+  if (currentSession) savePrivateHistory("manual-analysis", "Manual company truth scan", `${fieldsForHistory() }\n\n${$("findings").innerText}`);
   const revenue = num("revenue");
   const expenses = num("expenses");
   const profit = num("profit");
@@ -522,6 +573,12 @@ $("aiAskBtn")?.addEventListener("click", async () => {
     if (button) button.disabled = false;
   }
 });
+$("clearBtn").addEventListener("click",()=>{
+  ["revenue","expenses","profit","ocf","debt","cash","priorRevenue","priorProfit","period"].forEach(id=>$(id).value="");
+  $("ratioCards").innerHTML=""; $("findings").innerHTML='<p class="muted">Enter figures and run the scanner to see calculated ratios and research prompts.</p>';
+  $("manualSource").textContent="Source status: figures have not been entered.";
+  delete $("aiQuestion").dataset.context;
+  $("scenarioCards").innerHTML = "";
 
 $("clearBtn")?.addEventListener("click", () => {
   ["revenue", "expenses", "profit", "ocf", "debt", "cash", "priorRevenue", "priorProfit", "period"].forEach(id => {
@@ -570,4 +627,5 @@ $("scenarioBtn")?.addEventListener("click", () => {
 
 // Initialize on load
 checkHealth();
+
 setupQuickTickers();

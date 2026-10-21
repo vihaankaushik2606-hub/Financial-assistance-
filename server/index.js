@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
+const { summarizeStatements, createBudget } = require("./research");
 const { classifyProviderError } = require("./provider-errors");
 
 const app = express();
@@ -101,6 +102,16 @@ function validSymbol(value) {
 // In-memory cache for FMP data
 const providerCache = new Map();
 const providerRequestsInFlight = new Map();
+const configuredBudget = Number(process.env.FMP_DAILY_REQUEST_LIMIT || 200);
+const takeProviderRequest = createBudget(Number.isInteger(configuredBudget) && configuredBudget > 0 ? configuredBudget : 200, 24 * 60 * 60 * 1000);
+const takeMarketRequest = createBudget(120, 60 * 1000);
+app.use(["/api/quote", "/api/daily", "/api/fundamentals"], (_req, res, next) => {
+  if (!takeMarketRequest()) {
+    res.set("Retry-After", "60");
+    return res.status(429).json({ error: "Market-data requests are temporarily limited. Try again in a minute." });
+  }
+  next();
+});
 const CACHE_TTL_MS = {
   quote: 15 * 60 * 1000,
   "historical-price-eod/full": 6 * 60 * 60 * 1000,
@@ -173,6 +184,11 @@ async function fmpRequest(endpoint, params = {}) {
   if (cached && cached.expiresAt > Date.now()) return cached.data;
   if (providerRequestsInFlight.has(cacheKey)) return providerRequestsInFlight.get(cacheKey);
 
+  if (!takeProviderRequest()) {
+    const err = new Error("The site's daily market-data request budget has been reached. Cached data remains available; try again later.");
+    err.status = 429;
+    throw err;
+  }
   const request = (async () => {
     const url = new URL(`${FMP_BASE_URL}/${endpoint}`);
     for (const [key, value] of Object.entries({ ...params, apikey: fmpKey })) {
@@ -195,6 +211,10 @@ async function fmpRequest(endpoint, params = {}) {
       throw err;
     }
     const ttl = CACHE_TTL_MS[endpoint] || 60 * 60 * 1000;
+    for (const [key, entry] of providerCache) {
+      if (entry.expiresAt <= Date.now()) providerCache.delete(key);
+    }
+    if (providerCache.size >= 500) providerCache.delete(providerCache.keys().next().value);
     providerCache.set(cacheKey, { data, expiresAt: Date.now() + ttl });
     return data;
   })();
@@ -470,6 +490,11 @@ app.post("/api/company-analysis", requireAuth, limitAiRequests, async (req, res)
 
   if (symbol) {
     try {
+      const response = await fetch(`http://127.0.0.1:${PORT}/api/fundamentals?symbol=${encodeURIComponent(symbol)}`);
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.statements) {
+        providerContext = JSON.stringify(summarizeStatements(data.statements));
+        dataNote = "Selected fields from up to two annual and two quarterly periods per statement are supplied where available. Missing fields are null, not zero. Respect each statement's availability; compare matching periods and currencies only.";
       const data = await getFundamentals(symbol);
       if (data.statements) {
         providerContext = JSON.stringify(data.statements).slice(0, 12000);
@@ -540,3 +565,5 @@ if (require.main === module) {
     console.log(`AI Finance Lab running at http://localhost:${PORT}`);
   });
 }
+module.exports = app;
+
