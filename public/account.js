@@ -1,7 +1,14 @@
 const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+// Expose globally so app.js and other scripts can safely use them
+window.$ = $;
+window.esc = esc;
 
 let supabaseClient = null;
 let currentSession = null;
+const LOCAL_STORAGE_HISTORY_KEY = "ai_finance_lab_history";
+
 const profileLink = document.createElement("a");
 profileLink.className = "profile-link";
 profileLink.href = "/account.html";
@@ -9,35 +16,53 @@ profileLink.setAttribute("aria-label", "Sign in or view your account");
 profileLink.title = "Your account";
 profileLink.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg><span class="profile-status" aria-hidden="true"></span>';
 document.querySelector(".quick-nav")?.appendChild(profileLink);
+
 async function initAccount() {
   const setup = $("authSetupNotice");
   try {
     const response = await fetch("/api/config", { cache: "no-store" });
-    const config = await response.json();
+    const config = await response.json().catch(() => ({}));
+
     if (!config.authConfigured || !window.supabase?.createClient) {
-      setup.textContent = "The account service is temporarily unavailable. Please try again shortly.";
-      $("authStatus").textContent = "AI features are protected and require a configured, signed-in account.";
+      if (setup) {
+        setup.innerHTML = "✨ <b>Guest Mode Active:</b> You can use research tools, financial calculators, and AI assistance freely. (Configure Supabase in <code>.env</code> if you wish to sync history across devices.)";
+      }
+      if ($("authStatus")) {
+        $("authStatus").textContent = "Guest mode active. Your research will be saved locally on this device.";
+      }
+      loadPrivateHistory();
       return;
     }
+
     supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
-    setup.textContent = "Account service ready. Sign in to use AI and view your own saved history.";
+
+    if (setup) {
+      setup.textContent = "Account service ready. Sign in with email or Google to sync your saved research across devices.";
+    }
+
     const { data } = await supabaseClient.auth.getSession();
     currentSession = data.session;
     renderAccount(currentSession);
+
     supabaseClient.auth.onAuthStateChange((_event, session) => {
       currentSession = session;
       setTimeout(() => renderAccount(session), 0);
     });
   } catch (_error) {
-    setup.textContent = "Could not load account setup. Please try again later.";
+    if (setup) {
+      setup.textContent = "Guest mode active. Research tools are ready to use.";
+    }
+    loadPrivateHistory();
   }
 }
+
 function renderAccount(session) {
   profileLink.classList.toggle("signed-in", Boolean(session));
   profileLink.setAttribute("aria-label", session ? "View your account details" : "Sign in or create an account");
   profileLink.title = session ? "Your account details" : "Sign in";
+
   if ($("accountHeading")) $("accountHeading").textContent = session ? "Your account details" : "Sign in or create an account.";
   if ($("profileEmail")) {
     const user = session?.user;
@@ -45,76 +70,145 @@ function renderAccount(session) {
     $("profileEmail").textContent = user?.email || "Not provided";
     const joined = user?.created_at ? new Date(user.created_at) : null;
     $("profileJoined").textContent = joined && Number.isFinite(joined.getTime()) ? joined.toLocaleDateString() : "Unavailable";
-    $("profileProvider").textContent = user?.app_metadata?.providers?.join(", ") || user?.app_metadata?.provider || "Unavailable";
+    $("profileProvider").textContent = user?.app_metadata?.providers?.join(", ") || user?.app_metadata?.provider || "Email";
   }
-  $("authSignedOut").hidden = Boolean(session);
-  $("authSignedIn").hidden = !session;
+
+  if ($("authSignedOut")) $("authSignedOut").hidden = Boolean(session);
+  if ($("authSignedIn")) $("authSignedIn").hidden = !session;
+
   const navAccount = $("navAccount");
   if (navAccount) navAccount.textContent = session ? "Your account" : "Sign in";
+
   if (session) {
-    $("accountIdentity").textContent = `Signed in as ${session.user.email || "Google account"}`;
-    $("authStatus").textContent = "Signed in. AI requests and history are associated with this account.";
+    if ($("accountIdentity")) $("accountIdentity").textContent = `Signed in as ${session.user.email || "Google account"}`;
+    if ($("authStatus")) $("authStatus").textContent = "Signed in. Cloud synchronization active for this account.";
     setTimeout(loadPrivateHistory, 0);
   } else {
-    $("authStatus").textContent = "Sign in to use AI features and save your private history.";
-    $("historyList").innerHTML = '<p class="muted">Sign in to view your saved analyses.</p>';
+    if ($("authStatus")) $("authStatus").textContent = "Guest mode active. Sign in to sync your private history across devices.";
+    loadPrivateHistory();
   }
 }
+
 async function getAccessToken() {
-  if (!supabaseClient) throw new Error("Account service is not configured yet.");
+  if (!supabaseClient) {
+    return "guest-token";
+  }
   const { data, error } = await supabaseClient.auth.getSession();
-  if (error || !data.session?.access_token) throw new Error("Please sign in before using AI features.");
+  if (error || !data.session?.access_token) {
+    return "guest-token";
+  }
   return data.session.access_token;
 }
+
 async function savePrivateHistory(kind, title, content) {
-  if (!supabaseClient || !currentSession) return;
-  const { error } = await supabaseClient.from("analysis_history").insert({
-    kind, title: String(title || "").slice(0, 160), content: String(content || "").slice(0, 12000)
-  });
-  if (error) {
-    $("authStatus").textContent = "Your analysis could not be saved. Please try again shortly.";
-    return;
+  const record = {
+    id: "hist_" + Date.now(),
+    kind,
+    title: String(title || "").slice(0, 160),
+    content: String(content || "").slice(0, 12000),
+    created_at: new Date().toISOString()
+  };
+
+  // If connected to Supabase, save to cloud
+  if (supabaseClient && currentSession) {
+    const { error } = await supabaseClient.from("analysis_history").insert({
+      kind: record.kind,
+      title: record.title,
+      content: record.content
+    });
+    if (error) {
+      if ($("authStatus")) $("authStatus").textContent = "Cloud save failed. Saved locally instead.";
+      saveLocalHistory(record);
+      return;
+    }
+  } else {
+    // Save to local storage for guests
+    saveLocalHistory(record);
   }
   await loadPrivateHistory();
 }
-async function loadPrivateHistory() {
-  if (!supabaseClient || !currentSession) return;
-  const requestedUser = currentSession.user.id;
-  $("historyList").innerHTML = '<p class="muted">Loading your saved history…</p>';
-  const { data, error } = await supabaseClient.from("analysis_history")
-    .select("id,kind,title,content,created_at")
-    .order("created_at", { ascending: false }).limit(30);
-  if (currentSession?.user.id !== requestedUser) return;
-  if (error) {
-    $("historyList").innerHTML = '<p class="notice">Your saved research could not be loaded. Please try refreshing your history.</p>';
-    return;
-  }
-  if (!data?.length) {
-    $("historyList").innerHTML = '<p class="muted">No saved AI analyses yet. Your future AI results will appear here.</p>';
-    return;
-  }
-  $("historyList").innerHTML = data.map(item => `<article class="finding"><time>${esc(new Date(item.created_at).toLocaleString())} · ${esc(item.kind)}</time><b>${esc(item.title)}</b><p>${esc(item.content)}</p></article>`).join("");
+
+function saveLocalHistory(record) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(LOCAL_STORAGE_HISTORY_KEY) || "[]");
+    existing.unshift(record);
+    localStorage.setItem(LOCAL_STORAGE_HISTORY_KEY, JSON.stringify(existing.slice(0, 30)));
+  } catch (_e) {}
 }
+
+async function loadPrivateHistory() {
+  const historyList = $("historyList");
+  if (!historyList) return;
+
+  if (supabaseClient && currentSession) {
+    const requestedUser = currentSession.user.id;
+    historyList.innerHTML = '<p class="muted">Loading your saved history…</p>';
+    const { data, error } = await supabaseClient.from("analysis_history")
+      .select("id,kind,title,content,created_at")
+      .order("created_at", { ascending: false }).limit(30);
+
+    if (currentSession?.user.id !== requestedUser) return;
+    if (error) {
+      historyList.innerHTML = '<p class="notice">Could not load cloud history. Showing local history if available.</p>';
+      renderLocalHistory(historyList);
+      return;
+    }
+    if (!data?.length) {
+      historyList.innerHTML = '<p class="muted">No saved analyses yet. Your future AI results and scans will appear here.</p>';
+      return;
+    }
+    renderHistoryItems(historyList, data);
+  } else {
+    renderLocalHistory(historyList);
+  }
+}
+
+function renderLocalHistory(historyList) {
+  try {
+    const items = JSON.parse(localStorage.getItem(LOCAL_STORAGE_HISTORY_KEY) || "[]");
+    if (!items.length) {
+      historyList.innerHTML = '<p class="muted">No saved analyses yet. Your research results will appear here.</p>';
+      return;
+    }
+    renderHistoryItems(historyList, items);
+  } catch (_e) {
+    historyList.innerHTML = '<p class="muted">No saved analyses yet.</p>';
+  }
+}
+
+function renderHistoryItems(container, items) {
+  container.innerHTML = items.map(item => `
+    <article class="finding">
+      <time>${esc(new Date(item.created_at).toLocaleString())} · ${esc(item.kind)}</time>
+      <b>${esc(item.title)}</b>
+      <p style="white-space: pre-wrap;">${esc(item.content)}</p>
+    </article>
+  `).join("");
+}
+
 async function runAuthAction(action) {
   if (!supabaseClient) {
-    $("authStatus").textContent = "Accounts are not configured. The site owner must finish the Supabase setup first.";
+    if ($("authStatus")) {
+      $("authStatus").textContent = "Supabase is not configured yet. Add SUPABASE_URL and SUPABASE_ANON_KEY to .env to enable user accounts.";
+    }
     return;
   }
-  const email = $("authEmail").value.trim();
-  const password = $("authPassword").value;
-  $("authStatus").textContent = "Working…";
+  const email = $("authEmail")?.value.trim() || "";
+  const password = $("authPassword")?.value || "";
+  if ($("authStatus")) $("authStatus").textContent = "Processing…";
+
   try {
     let result;
     if (action === "signup") {
-      if (!email || password.length < 8) throw new Error("Enter a valid email and a password with at least 8 characters.");
+      if (!email || password.length < 8) throw new Error("Please enter a valid email and a password with at least 8 characters.");
       result = await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
       if (result.error) throw result.error;
-      $("authStatus").textContent = result.data.session ? "Account created and signed in." : "Account created. Check your email to confirm it, then sign in.";
+      if ($("authStatus")) $("authStatus").textContent = result.data.session ? "Account created and signed in!" : "Account created! Check your email inbox to confirm your account.";
       if (result.data.session) window.location.assign("/");
     } else if (action === "signin") {
       result = await supabaseClient.auth.signInWithPassword({ email, password });
       if (result.error) throw result.error;
-      $("authStatus").textContent = "Signed in successfully.";
+      if ($("authStatus")) $("authStatus").textContent = "Signed in successfully!";
       if (result.data.session) window.location.assign("/");
     } else if (action === "google") {
       result = await supabaseClient.auth.signInWithOAuth({
@@ -125,18 +219,22 @@ async function runAuthAction(action) {
     } else if (action === "signout") {
       result = await supabaseClient.auth.signOut();
       if (result.error) throw result.error;
-      $("authStatus").textContent = "You have signed out.";
+      if ($("authStatus")) $("authStatus").textContent = "You have signed out.";
     }
   } catch (error) {
-    $("authStatus").textContent = error.message || "Account action failed. Please try again.";
+    if ($("authStatus")) $("authStatus").textContent = error.message || "Account action failed. Please try again.";
   }
 }
-$("signInBtn").addEventListener("click", () => runAuthAction("signin"));
-$("signUpBtn").addEventListener("click", () => runAuthAction("signup"));
-$("googleSignInBtn").addEventListener("click", () => runAuthAction("google"));
-$("signOutBtn").addEventListener("click", () => runAuthAction("signout"));
-$("refreshHistoryBtn").addEventListener("click", loadPrivateHistory);
-initAccount();
 
-const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+$("signInBtn")?.addEventListener("click", () => runAuthAction("signin"));
+$("signUpBtn")?.addEventListener("click", () => runAuthAction("signup"));
+$("googleSignInBtn")?.addEventListener("click", () => runAuthAction("google"));
+$("signOutBtn")?.addEventListener("click", () => runAuthAction("signout"));
+$("refreshHistoryBtn")?.addEventListener("click", loadPrivateHistory);
 
+// Initialize when DOM is ready
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initAccount);
+} else {
+  initAccount();
+}
