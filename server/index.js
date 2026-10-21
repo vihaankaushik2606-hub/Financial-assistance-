@@ -4,7 +4,7 @@ const path = require("path");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const FMP_API_KEY = process.env.FMP_API_KEY;
+const FMP_API_KEY = String(process.env.FMP_API_KEY || "").trim();
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
@@ -46,19 +46,7 @@ function limitAiRequests(req, res, next) {
   next();
 }
 
-function safeProviderError(message) {
-  const text = String(message || "").toLowerCase();
-  if (text.includes("rate limit") || text.includes("frequency") || text.includes("call frequency") || text.includes("limit reached")) {
-    return "The market-data provider limit has been reached. Try again later or check your provider plan.";
-  }
-  if (text.includes("premium") || text.includes("entitlement") || text.includes("subscription")) {
-    return "This market-data endpoint may require a paid provider entitlement.";
-  }
-  if (text.includes("invalid api key") || text.includes("apikey is invalid") || text.includes("api key")) {
-    return "The market-data provider rejected its credentials. Check FMP_API_KEY in server environment settings.";
-  }
-  return "The market-data provider request failed. Check the server logs and provider status.";
-}
+const { classifyProviderError } = require("./provider-errors");
 
 function validSymbol(value) {
   const symbol = String(value || "").trim().toUpperCase();
@@ -98,7 +86,10 @@ async function fmpRequest(endpoint, params = {}) {
     const data = await response.json().catch(() => null);
     if (!response.ok || (data && !Array.isArray(data) && (data["Error Message"] || data.error || data["Error"]))) {
       const detail = data?.["Error Message"] || data?.error || data?.["Error"] || `HTTP ${response.status}`;
-      const err = new Error(safeProviderError(detail));
+      const diagnostic = classifyProviderError(detail, response.status);
+      const err = new Error(diagnostic.message);
+      err.code = diagnostic.code;
+      err.providerStatus = response.status;
       err.status = response.status === 401 || response.status === 403 ? 502 : response.status === 429 ? 429 : 502;
       throw err;
     }
@@ -142,7 +133,7 @@ app.get("/api/quote", async (req, res) => {
     };
     res.json({ symbol, source: "Financial Modeling Prep", fetchedAt: new Date().toISOString(), quote });
   } catch (e) {
-    res.status(e.status || 502).json({ error: e.message });
+    res.status(e.status || 502).json({ error: e.message, code: e.code, providerStatus: e.providerStatus });
   }
 });
 
@@ -164,7 +155,7 @@ app.get("/api/daily", async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: "No daily prices returned for this symbol.", symbol });
     res.json({ symbol, source: "Financial Modeling Prep", fetchedAt: new Date().toISOString(), rows });
   } catch (e) {
-    res.status(e.status || 502).json({ error: e.message });
+    res.status(e.status || 502).json({ error: e.message, code: e.code, providerStatus: e.providerStatus });
   }
 });
 
@@ -200,7 +191,7 @@ app.get("/api/fundamentals", async (req, res) => {
   try {
     res.json(await getFundamentals(symbol));
   } catch (e) {
-    res.status(e.status || 502).json({ error: e.message });
+    res.status(e.status || 502).json({ error: e.message, code: e.code, providerStatus: e.providerStatus });
   }
 });
 
