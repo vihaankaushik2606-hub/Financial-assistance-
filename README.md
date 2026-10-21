@@ -102,7 +102,7 @@ Market-data calls use FMP's Stable API from the server: `/stable/quote`, `/stabl
 
 ## Advanced financial analysis report
 
-The research dashboard includes a full report panel at `/dashboard.html` for ticker-based analysis. It uses the server-side `GET /api/analysis?symbol=...` endpoint and the existing FMP configuration; no API keys are required in browser code.
+The research dashboard includes a full report panel at `/dashboard.html` for any ticker supported by the configured Financial Modeling Prep plan. Enter the ticker symbol to run the same analysis pipeline for that company; there is no Reliance-specific logic. It uses the server-side `GET /api/analysis?symbol=...` endpoint and the existing FMP configuration; no API keys are required in browser code.
 
 The report can display, when supported by the provider data:
 - Revenue, net income, EBITDA, growth rates and margins.
@@ -121,3 +121,6 @@ The report can display, when supported by the provider data:
 - Segment-level analysis is explicitly marked unavailable because the current integration does not retrieve segment disclosures.
 - Free cash flow uses the provider's reported value when available; otherwise it is estimated as operating cash flow less the absolute capital-expenditure field.
 - The dashboard offers rule-based research prompts, not proof of fraud, fair-value certainty, or a buy/sell recommendation.
+
+
+Ticker coverage is provider-dependent: support can differ by exchange, symbol format, asset type, endpoint entitlement, and subscription tier. A symbol that returns a quote may not have complete annual statements, cash-flow fields, or all valuation inputs. The report exposes missing data rather than assuming every listed security has full coverage.
