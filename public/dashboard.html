@@ -47,7 +47,8 @@
     <div class="section-title"><div><div class="eyebrow">01 / Company</div><h2>Explore a stock</h2></div><span class="tag">Live data is provider-dependent</span></div>
     <div class="form-grid">
       <label>Stock ticker
-        <input id="symbol" maxlength="24" placeholder="e.g. AAPL, MSFT or IBM">
+        <input id="symbol" maxlength="24" placeholder="e.g. AAPL, MSFT, NVDA or IBM">
+        <div id="quickTickers" style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;"></div>
       </label>
       <label>Market data source
         <input value="Financial Modeling Prep (FMP)" disabled>
@@ -74,7 +75,7 @@
       <input id="autoCompany" maxlength="120" placeholder="e.g. IBM or Microsoft">
     </label>
     <div class="actions"><button id="autoAnalyzeBtn" class="primary">Analyze company</button></div>
-    <p id="autoAnalysisStatus" class="notice" role="status">Ready. Analysis requires OPENAI_API_KEY configured in Render. Financial statement availability depends on your data provider.</p>
+    <p id="autoAnalysisStatus" class="notice" role="status">Ready. Analysis requires OPENAI_API_KEY configured in your environment settings. Financial statement availability depends on your data provider.</p>
     <article id="autoAnalysisOutput" class="finding" hidden></article>
   </section>
 
@@ -121,19 +122,24 @@
   </section>
 
   <section class="panel">
-    <div class="section-title"><div><div class="eyebrow">04 / AI assistant</div><h2>Ask ChatGPT about your analysis</h2></div><span class="tag">AI-assisted · verify answers</span></div>
+    <div class="section-title"><div><div class="eyebrow">04 / AI assistant</div><h2>Ask the AI Research Assistant</h2></div><span class="tag">AI-assisted · verify answers</span></div>
     <p class="muted">Ask for explanations of financial terms, ratios, or warning patterns. You can optionally include your scanner results. Do not enter passwords, API keys, or private information.</p>
     <label>Your finance question
       <textarea id="aiQuestion" rows="3" maxlength="2000" placeholder="e.g. Explain why operating cash flow can be lower than net profit."></textarea>
     </label>
-    <div class="actions"><button id="aiAskBtn" class="primary">Ask ChatGPT</button><button id="aiContextBtn" class="secondary">Use my scanner results</button></div>
-    <p id="aiStatus" class="notice" role="status">AI assistant needs an OPENAI_API_KEY configured securely on the server.</p>
+    <div class="actions"><button id="aiAskBtn" class="primary">Ask AI Assistant</button><button id="aiContextBtn" class="secondary">Attach Scanner Figures</button></div>
+    <p id="aiStatus" class="notice" role="status">AI assistant is ready. (Add OPENAI_API_KEY in .env for live AI responses).</p>
     <article id="aiAnswer" class="finding" hidden></article>
   </section>
 
   <section class="panel">
-    <div class="section-title"><div><div class="eyebrow">04 / Scenario lab</div><h2>Test assumptions, not predictions</h2></div><span class="tag">Illustrative only</span></div>
-    <p class="muted">Scenarios calculate from your current-period revenue and assumed growth/margin. They are not target prices and are not forecasts unless independently justified.</p>
+    <div class="section-title"><div><div class="eyebrow">05 / Scenario lab</div><h2>Test assumptions, not predictions</h2></div><span class="tag">Illustrative only</span></div>
+    <p class="muted">Scenarios calculate forward projections from your revenue and assumed growth/margin. They help visualize possibilities, not guarantee target prices.</p>
+    <div class="form-grid" style="margin-bottom: 14px;">
+      <label>Annual Revenue ($)
+        <input id="scenarioRevenue" type="number" min="0" step="any" placeholder="e.g. 100000000 (auto-filled from loaded stock or scanner)">
+      </label>
+    </div>
     <div class="form-grid three">
       <label>Bear case growth (%)<input id="bearGrowth" type="number" value="-5" step="1"></label>
       <label>Base case growth (%)<input id="baseGrowth" type="number" value="5" step="1"></label>

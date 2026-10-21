@@ -68,21 +68,21 @@ GitHub Pages cannot run the Node backend. You may host the static frontend on Gi
 
 ## Accounts, Google sign-in, and private AI history
 
-This project uses Supabase Auth for email/password and Google sign-in, plus a Postgres table with row-level security (RLS) for each user's AI history. The OpenAI key stays on the Render server. The browser receives only the Supabase project URL and public anon key; never expose a Supabase service-role key.
+This project uses Supabase Auth for email/password and Google sign-in, plus a Postgres table with row-level security (RLS) for each user's AI history. The OpenAI key stays securely on the backend server. The browser receives only the Supabase project URL and public anon key; never expose a Supabase service-role key.
 
 ### One-time setup required before account features work
 
 1. Create a Supabase project at https://supabase.com/ and open **Project Settings → API**. Copy the project URL and the **anon/public** key.
 2. In Supabase **SQL Editor**, run the complete script in `supabase/schema.sql`. This creates `analysis_history` and policies that restrict reads/inserts/deletes to the signed-in user's own rows. Do not disable RLS.
-3. In Supabase **Authentication → URL Configuration**, set the Site URL to `https://ai-finance-lab-3iqk.onrender.com` and add that same origin to the allowed redirect URLs. Add your localhost origin if testing locally.
+3. In Supabase **Authentication → URL Configuration**, set the Site URL to your deployed domain (or `http://localhost:3000` when testing locally) and add that same origin to the allowed redirect URLs.
 4. In Supabase **Authentication → Providers → Google**, enable Google and configure the Google OAuth Client ID and Client Secret from the Google Cloud OAuth credentials setup. Add the Supabase-provided callback URL to the Google OAuth client's authorized redirect URIs. Google sign-in will not work until both sides are configured.
-5. In Render → the `ai-finance-lab` service → **Environment**, set:
+5. In your server host's **Environment Settings** (or local `.env`), configure:
    - `SUPABASE_URL` = your Supabase project URL
    - `SUPABASE_ANON_KEY` = your Supabase anon/public key
    - `OPENAI_API_KEY` = your OpenAI API key
    - `FMP_API_KEY` = your Financial Modeling Prep key
-   Then redeploy/restart the service. Never put secret keys in frontend files, commits, screenshots, or chat.
-6. Visit the live site, create an account, and test email sign-in first. Test Google only after completing its provider setup.
+   Then restart or deploy the service. Never put secret keys in frontend files, commits, screenshots, or chat.
+6. Visit the site, create an account, and test email sign-in first. Test Google only after completing its provider setup.
 
 ### Security and behavior
 
@@ -124,3 +124,4 @@ The report can display, when supported by the provider data:
 
 
 Ticker coverage is provider-dependent: support can differ by exchange, symbol format, asset type, endpoint entitlement, and subscription tier. A symbol that returns a quote may not have complete annual statements, cash-flow fields, or all valuation inputs. The report exposes missing data rather than assuming every listed security has full coverage.
+Market-data calls use FMP's Stable API from the server: `/stable/quote`, `/stable/historical-price-eod/full`, `/stable/income-statement`, `/stable/balance-sheet-statement`, and `/stable/cash-flow-statement`. Set `FMP_API_KEY` in your backend environment settings (.env); never put the key in frontend code or GitHub. FMP endpoint access, historical coverage, and annual/quarterly statement availability depend on your FMP plan. The API endpoints are normalized to the existing dashboard response format so the current frontend can continue working.
