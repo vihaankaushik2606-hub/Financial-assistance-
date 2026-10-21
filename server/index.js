@@ -55,9 +55,9 @@ function safeProviderError(message) {
     return "This market-data endpoint may require a paid provider entitlement.";
   }
   if (text.includes("invalid api key") || text.includes("apikey is invalid") || text.includes("api key")) {
-    return "The market-data provider rejected its credentials. Check FMP_API_KEY in Render environment settings.";
+    return "The market-data provider rejected its credentials. Check FMP_API_KEY in server environment settings.";
   }
-  return "The market-data provider request failed. Check the Render logs and provider status.";
+  return "The market-data provider request failed. Check the server logs and provider status.";
 }
 
 function validSymbol(value) {
@@ -80,7 +80,7 @@ const CACHE_TTL_MS = {
 
 async function fmpRequest(endpoint, params = {}) {
   if (!FMP_API_KEY) {
-    const err = new Error("Market-data provider is not configured. Set FMP_API_KEY in Render environment settings.");
+    const err = new Error("Market-data provider is not configured. Set FMP_API_KEY in server environment settings.");
     err.status = 503;
     throw err;
   }
@@ -168,16 +168,13 @@ app.get("/api/daily", async (req, res) => {
   }
 });
 
-app.get("/api/fundamentals", async (req, res) => {
-  const symbol = validSymbol(req.query.symbol);
-  if (!symbol) return res.status(400).json({ error: "Provide a valid ticker symbol." });
+async function getFundamentals(symbol) {
   const endpoints = [
     ["incomeStatement", "income-statement"],
     ["balanceSheet", "balance-sheet-statement"],
     ["cashFlow", "cash-flow-statement"]
   ];
-  try {
-    const entries = await Promise.all(endpoints.map(async ([label, endpoint]) => {
+  const entries = await Promise.all(endpoints.map(async ([label, endpoint]) => {
       try {
         const [annualResult, quarterlyResult] = await Promise.allSettled([
           fmpRequest(endpoint, { symbol, period: "annual", limit: 5 }),
@@ -194,15 +191,23 @@ app.get("/api/fundamentals", async (req, res) => {
         return [label, { available: false, message: e.message }];
       }
     }));
-    res.json({ symbol, source: "Financial Modeling Prep", fetchedAt: new Date().toISOString(), statements: Object.fromEntries(entries) });
+  return { symbol, source: "Financial Modeling Prep", fetchedAt: new Date().toISOString(), statements: Object.fromEntries(entries) };
+}
+
+app.get("/api/fundamentals", async (req, res) => {
+  const symbol = validSymbol(req.query.symbol);
+  if (!symbol) return res.status(400).json({ error: "Provide a valid ticker symbol." });
+  try {
+    res.json(await getFundamentals(symbol));
   } catch (e) {
     res.status(e.status || 502).json({ error: e.message });
   }
 });
 
+
 app.post("/api/ai-assist", requireAuth, limitAiRequests, async (req, res) => {
   if (!OPENAI_API_KEY) {
-    return res.status(503).json({ error: "AI assistant is not configured yet. Add OPENAI_API_KEY to your Render environment variables." });
+    return res.status(503).json({ error: "AI assistant is not configured yet. Add OPENAI_API_KEY to your server environment variables." });
   }
   const question = String(req.body?.question || "").trim();
   const context = String(req.body?.context || "").trim();
@@ -227,9 +232,9 @@ app.post("/api/ai-assist", requireAuth, limitAiRequests, async (req, res) => {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       const status = response.status;
-      if (status === 401 || status === 403) return res.status(502).json({ error: "The AI provider rejected the server credentials or access. Check OPENAI_API_KEY and project access in Render." });
+      if (status === 401 || status === 403) return res.status(502).json({ error: "The AI provider rejected the server credentials or access. Check OPENAI_API_KEY and project access in your deployment settings." });
       if (status === 429) return res.status(429).json({ error: "The AI service is rate-limited or its API usage quota is exhausted. Check your API usage and billing settings." });
-      return res.status(502).json({ error: "The AI service could not complete this request. Check Render logs and the AI provider status." });
+      return res.status(502).json({ error: "The AI service could not complete this request. Check server logs and the AI provider status." });
     }
     const answer = Array.isArray(data.output)
       ? data.output.flatMap(item => Array.isArray(item.content) ? item.content : []).filter(item => item.type === "output_text").map(item => item.text).join("\n").trim()
@@ -244,7 +249,7 @@ app.post("/api/ai-assist", requireAuth, limitAiRequests, async (req, res) => {
 
 app.post("/api/company-analysis", requireAuth, limitAiRequests, async (req, res) => {
   if (!OPENAI_API_KEY) {
-    return res.status(503).json({ error: "AI analysis is not configured. Add OPENAI_API_KEY to the Render environment." });
+    return res.status(503).json({ error: "AI analysis is not configured. Add OPENAI_API_KEY to the server environment." });
   }
   const company = String(req.body?.company || "").trim().slice(0, 120);
   if (!company) return res.status(400).json({ error: "Enter a company name or ticker symbol." });
@@ -254,9 +259,8 @@ app.post("/api/company-analysis", requireAuth, limitAiRequests, async (req, res)
   const symbol = validSymbol(company);
   if (symbol) {
     try {
-      const response = await fetch(`http://127.0.0.1:${PORT}/api/fundamentals?symbol=${encodeURIComponent(symbol)}`);
-      const data = await response.json().catch(() => ({}));
-      if (response.ok && data.statements) {
+      const data = await getFundamentals(symbol);
+      if (data.statements) {
         providerContext = JSON.stringify(data.statements).slice(0, 12000);
         dataNote = "Provider statement data was retrieved where available; each statement's availability message must be respected.";
       } else {
@@ -282,9 +286,9 @@ app.post("/api/company-analysis", requireAuth, limitAiRequests, async (req, res)
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) return res.status(502).json({ error: "The AI provider rejected the server credentials or access. Check OPENAI_API_KEY in Render." });
+      if (response.status === 401 || response.status === 403) return res.status(502).json({ error: "The AI provider rejected the server credentials or access. Check OPENAI_API_KEY in your deployment settings." });
       if (response.status === 429) return res.status(429).json({ error: "The AI service is rate-limited or its API usage quota is exhausted." });
-      return res.status(502).json({ error: "The AI service could not complete the analysis. Check Render logs." });
+      return res.status(502).json({ error: "The AI service could not complete the analysis. Check server logs." });
     }
     const answer = Array.isArray(data.output)
       ? data.output.flatMap(item => Array.isArray(item.content) ? item.content : []).filter(item => item.type === "output_text").map(item => item.text).join("\n").trim()
@@ -298,6 +302,10 @@ app.post("/api/company-analysis", requireAuth, limitAiRequests, async (req, res)
 
 app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "..", "public", "index.html")));
 
-app.listen(PORT, () => {
-  console.log(`AI Finance Lab running at http://localhost:${PORT}`);
-});
+module.exports = app;
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`AI Finance Lab running at http://localhost:${PORT}`);
+  });
+}
