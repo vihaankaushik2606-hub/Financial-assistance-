@@ -2,6 +2,13 @@ const $ = (id) => document.getElementById(id);
 
 let supabaseClient = null;
 let currentSession = null;
+const profileLink = document.createElement("a");
+profileLink.className = "profile-link";
+profileLink.href = "/account.html";
+profileLink.setAttribute("aria-label", "Sign in or view your account");
+profileLink.title = "Your account";
+profileLink.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg><span class="profile-status" aria-hidden="true"></span>';
+document.querySelector(".quick-nav")?.appendChild(profileLink);
 async function initAccount() {
   const setup = $("authSetupNotice");
   try {
@@ -28,6 +35,18 @@ async function initAccount() {
   }
 }
 function renderAccount(session) {
+  profileLink.classList.toggle("signed-in", Boolean(session));
+  profileLink.setAttribute("aria-label", session ? "View your account details" : "Sign in or create an account");
+  profileLink.title = session ? "Your account details" : "Sign in";
+  if ($("accountHeading")) $("accountHeading").textContent = session ? "Your account details" : "Sign in or create an account.";
+  if ($("profileEmail")) {
+    const user = session?.user;
+    $("profileName").textContent = user?.user_metadata?.full_name || user?.user_metadata?.name || "Not provided";
+    $("profileEmail").textContent = user?.email || "Not provided";
+    const joined = user?.created_at ? new Date(user.created_at) : null;
+    $("profileJoined").textContent = joined && Number.isFinite(joined.getTime()) ? joined.toLocaleDateString() : "Unavailable";
+    $("profileProvider").textContent = user?.app_metadata?.providers?.join(", ") || user?.app_metadata?.provider || "Unavailable";
+  }
   $("authSignedOut").hidden = Boolean(session);
   $("authSignedIn").hidden = !session;
   const navAccount = $("navAccount");
@@ -88,13 +107,15 @@ async function runAuthAction(action) {
     let result;
     if (action === "signup") {
       if (!email || password.length < 8) throw new Error("Enter a valid email and a password with at least 8 characters.");
-      result = await supabaseClient.auth.signUp({ email, password });
+      result = await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
       if (result.error) throw result.error;
       $("authStatus").textContent = result.data.session ? "Account created and signed in." : "Account created. Check your email to confirm it, then sign in.";
+      if (result.data.session) window.location.assign("/");
     } else if (action === "signin") {
       result = await supabaseClient.auth.signInWithPassword({ email, password });
       if (result.error) throw result.error;
       $("authStatus").textContent = "Signed in successfully.";
+      if (result.data.session) window.location.assign("/");
     } else if (action === "google") {
       result = await supabaseClient.auth.signInWithOAuth({
         provider: "google",

@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Account & Settings — AI Finance Lab</title><link rel="stylesheet" href="/landing.css"><link rel="stylesheet" href="/navigation.css"><link rel="stylesheet" href="/purple.css">
 </head><body><nav class="quick-nav" aria-label="Account navigation"><a href="/">Home</a><a href="/dashboard.html">Research</a><a href="/account.html">Account</a><a href="/account.html#settings">Settings</a></nav><main><section class="account-area" id="accountPanel"><div class="wrap account-layout">
   <div class="account-copy"><p class="eyebrow">YOUR SPACE TO THINK</p><h2>Your account.</h2><p>Sign in to use the AI tools and keep your saved analyses in one place. Your research history belongs to your account.</p><div class="account-benefits"><span>✓ Email or Google sign-in</span><span>✓ Private saved analyses</span><span>✓ Pick up where you left off</span></div><p class="quiet-note">AI tools require an account and an available AI service.</p></div>
-  <div class="account-card"><div class="card-heading"><span class="mini-mark">F↗</span><span>YOUR ACCOUNT</span></div><h2>Sign in or create an account.</h2><p class="muted">A fresh perspective starts with a question.</p>
+  <div class="account-card"><div class="card-heading"><span class="mini-mark">F↗</span><span>YOUR ACCOUNT</span></div><h2 id="accountHeading">Sign in or create an account.</h2><p class="muted">A fresh perspective starts with a question.</p>
     <p id="authSetupNotice" class="notice" role="status">Checking account service…</p>
     <div id="authSignedOut">
       <button id="googleSignInBtn" class="google-button" type="button"><span class="google-g" aria-hidden="true">G</span>Continue with Google</button>
@@ -10,7 +10,7 @@
       <label for="authPassword">Password</label><input id="authPassword" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="At least 8 characters">
       <div class="auth-actions"><button id="signInBtn" class="button mint" type="button">Sign in <span aria-hidden="true">→</span></button><button id="signUpBtn" class="button outline" type="button">Create account</button></div>
     </div>
-    <div id="authSignedIn" hidden><p id="accountIdentity" class="identity"></p><a class="button mint dashboard-link" href="/dashboard.html">Open your dashboard <span aria-hidden="true">↗</span></a><div class="signed-in-actions"><button id="refreshHistoryBtn" type="button">Refresh history</button><button id="signOutBtn" type="button">Sign out</button></div><h3>Your saved research</h3><div id="historyList" class="history-list"></div></div>
+    <div id="authSignedIn" hidden><p id="accountIdentity" class="identity"></p><dl class="profile-details"><div><dt>Name</dt><dd id="profileName"></dd></div><div><dt>Email</dt><dd id="profileEmail"></dd></div><div><dt>Member since</dt><dd id="profileJoined"></dd></div><div><dt>Sign-in method</dt><dd id="profileProvider"></dd></div></dl><a class="button mint dashboard-link" href="/dashboard.html">Open your dashboard <span aria-hidden="true">↗</span></a><div class="signed-in-actions"><button id="refreshHistoryBtn" type="button">Refresh history</button><button id="signOutBtn" type="button">Sign out</button></div><h3>Your saved research</h3><div id="historyList" class="history-list"></div></div>
     <p id="authStatus" class="notice" role="status" aria-live="polite">Sign in to access your private research history.</p>
   </div>
 </div></section>
