@@ -97,4 +97,31 @@ This project uses Supabase Auth for email/password and Google sign-in, plus a Po
 
 ## Financial Modeling Prep market data
 
+Market-data calls use FMP's Stable API from the server: `/stable/quote`, `/stable/historical-price-eod/full`, `/stable/income-statement`, `/stable/balance-sheet-statement`, and `/stable/cash-flow-statement`. Set `FMP_API_KEY` in Render's environment settings; never put the key in frontend code or GitHub. FMP endpoint access, historical coverage, and annual/quarterly statement availability depend on your FMP plan. The API endpoints are normalized to the existing dashboard response format so the current frontend can continue working.
+
+
+## Advanced financial analysis report
+
+The research dashboard includes a full report panel at `/dashboard.html` for any ticker supported by the configured Financial Modeling Prep plan. Enter the ticker symbol to run the same analysis pipeline for that company; there is no Reliance-specific logic. It uses the server-side `GET /api/analysis?symbol=...` endpoint and the existing FMP configuration; no API keys are required in browser code.
+
+The report can display, when supported by the provider data:
+- Revenue, net income, EBITDA, growth rates and margins.
+- Debt, cash, net debt, debt/equity, net debt/EBITDA, current ratio, ROA and ROE.
+- Operating cash flow, capital expenditure, free cash flow and cash conversion.
+- Approximate P/E, price/sales, price/book and EV/EBITDA.
+- Up to five annual statement periods and a downloadable JSON snapshot.
+- Per-statement coverage, retrieval timestamp, missing-input list, source notes, and explicit segment-data limitations.
+
+### Interpretation and limitations
+
+- All financial ratios are deterministic calculations over the fields returned by Financial Modeling Prep; unavailable inputs remain unavailable rather than being silently converted to zero.
+- The endpoint currently derives growth from the latest two annual income-statement rows and trend rows from available annual statements. It is not a substitute for official filings.
+- Provider field names, ticker coverage, reporting currencies, statement completeness, and endpoint entitlements can vary. Check units and fiscal periods before comparing companies.
+- Valuation ratios can combine a recent quote/market capitalization with annual statement figures from a different date; treat them as approximate.
+- Segment-level analysis is explicitly marked unavailable because the current integration does not retrieve segment disclosures.
+- Free cash flow uses the provider's reported value when available; otherwise it is estimated as operating cash flow less the absolute capital-expenditure field.
+- The dashboard offers rule-based research prompts, not proof of fraud, fair-value certainty, or a buy/sell recommendation.
+
+
+Ticker coverage is provider-dependent: support can differ by exchange, symbol format, asset type, endpoint entitlement, and subscription tier. A symbol that returns a quote may not have complete annual statements, cash-flow fields, or all valuation inputs. The report exposes missing data rather than assuming every listed security has full coverage.
 Market-data calls use FMP's Stable API from the server: `/stable/quote`, `/stable/historical-price-eod/full`, `/stable/income-statement`, `/stable/balance-sheet-statement`, and `/stable/cash-flow-statement`. Set `FMP_API_KEY` in your backend environment settings (.env); never put the key in frontend code or GitHub. FMP endpoint access, historical coverage, and annual/quarterly statement availability depend on your FMP plan. The API endpoints are normalized to the existing dashboard response format so the current frontend can continue working.

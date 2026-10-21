@@ -6,6 +6,7 @@
 <meta name="description" content="Evidence-first company financial research dashboard">
 <title>Research dashboard — AI Finance Lab</title>
 <link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/advanced-analysis.css">
 <link rel="stylesheet" href="/navigation.css">
 <link rel="stylesheet" href="/purple.css">
 </head>
@@ -98,6 +99,28 @@
     <p id="manualSource" class="notice">Source status: figures have not been entered. Any manual figures remain unverified until you check the cited filing.</p>
   </section>
 
+
+  <section class="panel" id="advancedAnalysisPanel">
+    <div class="section-title"><div><div class="eyebrow">02 / Full financial report</div><h2>Advanced company analysis</h2></div><span class="tag">Calculated from retrieved statements</span></div>
+    <p class="muted">Analyze any stock ticker covered by your Financial Modeling Prep plan. Generate profitability, growth, leverage, cash-flow and valuation checks, plus multi-year trends. Missing fields stay unavailable rather than being treated as zero; results are not independently verified analyst reports.</p>
+    <div class="form-grid">
+      <label>Ticker for the full report<input id="advancedSymbol" maxlength="24" placeholder="Any FMP-supported ticker, e.g. AAPL, MSFT, RELIANCE.NS"></label>
+      <label>Market data provider<input value="Financial Modeling Prep · provider coverage varies" disabled></label>
+    </div>
+    <div class="actions"><button id="advancedAnalyzeBtn" class="primary">Generate full report</button><button id="advancedExportBtn" class="secondary" disabled>Download report JSON</button></div>
+    <p id="advancedStatus" class="notice" role="status">Ready. Check the reporting period, currency, and provider availability before relying on calculated ratios.</p>
+    <div id="advancedSummary" class="metrics"></div>
+    <div id="advancedFindings" class="findings"></div>
+    <h3>Valuation and balance-sheet ratios</h3>
+    <div id="advancedValuation" class="metrics"></div>
+    <h3>Multi-year trends</h3>
+    <p class="muted">Annual periods returned by the provider. Cross-check against audited statements; latest periods may not be complete or directly comparable.</p>
+    <div id="advancedTrendTable" class="table-wrap"></div>
+    <h3>Data coverage and limitations</h3>
+    <div id="advancedCoverage" class="findings"></div>
+    <p class="notice">Valuation ratios may combine a current quote with annual statement values from a different date. Segment analysis is not available in this report yet. Do not interpret missing data as zero, or a flagged ratio as evidence of misconduct.</p>
+  </section>
+
   <section class="panel">
     <div class="section-title"><div><div class="eyebrow">04 / AI assistant</div><h2>Ask the AI Research Assistant</h2></div><span class="tag">AI-assisted · verify answers</span></div>
     <p class="muted">Ask for explanations of financial terms, ratios, or warning patterns. You can optionally include your scanner results. Do not enter passwords, API keys, or private information.</p>
@@ -133,6 +156,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
 <script src="/account.js" defer></script>
 <script src="/app.js" defer></script>
+<script src="/advanced-analysis.js" defer></script>
 <script src="/navigation.js" defer></script>
 </body>
 </html>
