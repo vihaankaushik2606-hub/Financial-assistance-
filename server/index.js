@@ -196,6 +196,146 @@ app.get("/api/fundamentals", async (req, res) => {
 });
 
 
+// Comprehensive deterministic financial analysis. Missing provider fields remain null.
+function finiteNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+function firstNumber(row, keys) {
+  for (const key of keys) {
+    const value = finiteNumber(row?.[key]);
+    if (value !== null) return value;
+  }
+  return null;
+}
+function ratio(numerator, denominator) {
+  return numerator === null || denominator === null || denominator === 0 ? null : numerator / denominator;
+}
+function pctChange(current, prior) {
+  return current === null || prior === null || prior === 0 ? null : (current / prior - 1) * 100;
+}
+function firstRows(statement) {
+  return statement?.available && Array.isArray(statement.annualReports) ? statement.annualReports : [];
+}
+function pickStatementValue(row, keys) { return firstNumber(row, keys); }
+
+app.get("/api/analysis", async (req, res) => {
+  const symbol = validSymbol(req.query.symbol);
+  if (!symbol) return res.status(400).json({ error: "Provide a valid ticker symbol." });
+  try {
+    const [fundamentals, quoteResult] = await Promise.allSettled([
+      getFundamentals(symbol),
+      fmpRequest("quote", { symbol })
+    ]);
+    const data = fundamentals.status === "fulfilled" ? fundamentals.value : null;
+    const quoteRows = quoteResult.status === "fulfilled" && Array.isArray(quoteResult.value) ? quoteResult.value : [];
+    const quote = quoteRows[0] || null;
+    const statements = data?.statements || {};
+    const incomeRows = firstRows(statements.incomeStatement).slice().sort((a,b) => String(b.date || b.calendarYear || "").localeCompare(String(a.date || a.calendarYear || "")));
+    const balanceRows = firstRows(statements.balanceSheet).slice().sort((a,b) => String(b.date || b.calendarYear || "").localeCompare(String(a.date || a.calendarYear || "")));
+    const cashRows = firstRows(statements.cashFlow).slice().sort((a,b) => String(b.date || b.calendarYear || "").localeCompare(String(a.date || a.calendarYear || "")));
+    const latestIncome = incomeRows[0] || null;
+    const priorIncome = incomeRows[1] || null;
+    const latestBalance = balanceRows[0] || null;
+    const latestCash = cashRows[0] || null;
+    const revenueKeys = ["revenue", "totalRevenue"];
+    const netIncomeKeys = ["netIncome", "netIncomeFromContinuingOperations"];
+    const operatingIncomeKeys = ["operatingIncome"];
+    const ebitdaKeys = ["ebitda", "EBITDA"];
+    const currentRevenue = pickStatementValue(latestIncome, revenueKeys);
+    const priorRevenue = pickStatementValue(priorIncome, revenueKeys);
+    const netIncome = pickStatementValue(latestIncome, netIncomeKeys);
+    const priorNetIncome = pickStatementValue(priorIncome, netIncomeKeys);
+    const operatingIncome = pickStatementValue(latestIncome, operatingIncomeKeys);
+    const ebitda = pickStatementValue(latestIncome, ebitdaKeys);
+    const totalDebt = pickStatementValue(latestBalance, ["totalDebt", "shortTermDebtAndLongTermDebt", "longTermDebt"]);
+    const cash = pickStatementValue(latestBalance, ["cashAndCashEquivalents", "cashAndShortTermInvestments", "cashAndCashEquivalentsAtCarryingValue"]);
+    const totalAssets = pickStatementValue(latestBalance, ["totalAssets"]);
+    const equity = pickStatementValue(latestBalance, ["totalStockholdersEquity", "totalEquity"]);
+    const currentAssets = pickStatementValue(latestBalance, ["totalCurrentAssets"]);
+    const currentLiabilities = pickStatementValue(latestBalance, ["totalCurrentLiabilities"]);
+    const operatingCashFlow = pickStatementValue(latestCash, ["operatingCashFlow", "netCashProvidedByOperatingActivities"]);
+    const capexRaw = pickStatementValue(latestCash, ["capitalExpenditure", "capitalExpenditures"]);
+    const capex = capexRaw === null ? null : Math.abs(capexRaw);
+    const reportedFcf = pickStatementValue(latestCash, ["freeCashFlow"]);
+    const freeCashFlow = reportedFcf !== null ? reportedFcf : (operatingCashFlow !== null && capex !== null ? operatingCashFlow - capex : null);
+    const marketCap = firstNumber(quote, ["marketCap"]);
+    const sharePrice = firstNumber(quote, ["price"]);
+    const netDebt = totalDebt !== null && cash !== null ? totalDebt - cash : null;
+    const enterpriseValue = marketCap !== null && netDebt !== null ? marketCap + netDebt : null;
+    const metrics = {
+      revenue: currentRevenue,
+      revenueGrowthPct: pctChange(currentRevenue, priorRevenue),
+      netIncome,
+      netIncomeGrowthPct: pctChange(netIncome, priorNetIncome),
+      netProfitMarginPct: ratio(netIncome, currentRevenue) === null ? null : ratio(netIncome, currentRevenue) * 100,
+      operatingIncome,
+      operatingMarginPct: ratio(operatingIncome, currentRevenue) === null ? null : ratio(operatingIncome, currentRevenue) * 100,
+      ebitda,
+      ebitdaMarginPct: ratio(ebitda, currentRevenue) === null ? null : ratio(ebitda, currentRevenue) * 100,
+      totalDebt,
+      cashAndEquivalents: cash,
+      netDebt,
+      netDebtToEbitda: ratio(netDebt, ebitda),
+      debtToEquity: ratio(totalDebt, equity),
+      currentRatio: ratio(currentAssets, currentLiabilities),
+      returnOnAssetsPct: ratio(netIncome, totalAssets) === null ? null : ratio(netIncome, totalAssets) * 100,
+      returnOnEquityPct: ratio(netIncome, equity) === null ? null : ratio(netIncome, equity) * 100,
+      operatingCashFlow,
+      capitalExpenditure: capex,
+      freeCashFlow,
+      cashConversionPct: ratio(operatingCashFlow, netIncome) === null ? null : ratio(operatingCashFlow, netIncome) * 100,
+      sharePrice,
+      marketCap,
+      peRatio: ratio(marketCap, netIncome),
+      priceToSales: ratio(marketCap, currentRevenue),
+      priceToBook: ratio(marketCap, equity),
+      evToEbitda: ratio(enterpriseValue, ebitda)
+    };
+    const incomeByYear = new Map(incomeRows.map(row => [String(row.calendarYear || (row.date || "").slice(0,4)), row]));
+    const trends = [...incomeByYear.entries()].filter(([year]) => year && year !== "undefined").slice(0,5).map(([year,row]) => {
+      const cashRow = cashRows.find(item => String(item.calendarYear || (item.date || "").slice(0,4)) === year);
+      const balanceRow = balanceRows.find(item => String(item.calendarYear || (item.date || "").slice(0,4)) === year);
+      const rev = pickStatementValue(row, revenueKeys);
+      const ni = pickStatementValue(row, netIncomeKeys);
+      const ebit = pickStatementValue(row, ebitdaKeys);
+      const ocf = pickStatementValue(cashRow, ["operatingCashFlow", "netCashProvidedByOperatingActivities"]);
+      const cap = pickStatementValue(cashRow, ["capitalExpenditure", "capitalExpenditures"]);
+      const debt = pickStatementValue(balanceRow, ["totalDebt", "shortTermDebtAndLongTermDebt", "longTermDebt"]);
+      const cashVal = pickStatementValue(balanceRow, ["cashAndCashEquivalents", "cashAndShortTermInvestments", "cashAndCashEquivalentsAtCarryingValue"]);
+      const fcfReported = pickStatementValue(cashRow, ["freeCashFlow"]);
+      return { year, date: row.date || null, revenue: rev, netIncome: ni, ebitda: ebit, netProfitMarginPct: ratio(ni, rev) === null ? null : ratio(ni, rev) * 100, operatingCashFlow: ocf, capitalExpenditure: cap === null ? null : Math.abs(cap), freeCashFlow: fcfReported !== null ? fcfReported : (ocf !== null && cap !== null ? ocf - Math.abs(cap) : null), totalDebt: debt, cashAndEquivalents: cashVal, netDebt: debt !== null && cashVal !== null ? debt - cashVal : null };
+    });
+    const availability = Object.fromEntries(["incomeStatement","balanceSheet","cashFlow"].map(key => [key, {
+      available: Boolean(statements[key]?.available && (statements[key]?.annualReports?.length || statements[key]?.quarterlyReports?.length)),
+      message: statements[key]?.message || null,
+      source: statements[key]?.source || null,
+      annualPeriods: statements[key]?.annualReports?.length || 0,
+      quarterlyPeriods: statements[key]?.quarterlyReports?.length || 0
+    }]));
+    const missingFields = Object.entries(metrics).filter(([,value]) => value === null).map(([key]) => key);
+    res.json({
+      symbol, source: "Financial Modeling Prep", fetchedAt: new Date().toISOString(),
+      quote: quote ? { price: sharePrice, currency: quote.currency || null, marketCap, exchange: quote.exchange || null, timestamp: quote.timestamp || quote.lastUpdated || null } : null,
+      latestPeriod: latestIncome?.date || latestIncome?.calendarYear || null,
+      priorPeriod: priorIncome?.date || priorIncome?.calendarYear || null,
+      metrics, trends, availability, missingFields,
+      segmentAnalysis: { available: false, message: "Segment revenue and segment operating profit are not currently retrieved by this project. Add a supported segment-data endpoint or use the company's official segment note." },
+      notes: [
+        "Financial statement field availability and units depend on provider coverage and plan.",
+        "Ratios are calculated only when required inputs are present; missing values are null, never assumed to be zero.",
+        "Net debt uses reported total debt less cash and equivalents where both fields are available.",
+        "Free cash flow uses the provider's reported freeCashFlow when present; otherwise operating cash flow minus absolute capital expenditure.",
+        "P/E, price-to-sales, and EV/EBITDA use market capitalization from the provider quote and latest available annual statement data; mismatched dates may make them approximate."
+      ]
+    });
+  } catch (e) {
+    res.status(e.status || 502).json({ error: e.message, code: e.code, providerStatus: e.providerStatus });
+  }
+});
+
+
 app.post("/api/ai-assist", requireAuth, limitAiRequests, async (req, res) => {
   if (!OPENAI_API_KEY) {
     return res.status(503).json({ error: "AI assistant is not configured yet. Add OPENAI_API_KEY to your server environment variables." });
