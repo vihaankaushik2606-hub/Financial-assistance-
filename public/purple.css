@@ -1,0 +1,32 @@
+
+/* Purple river theme shared by every page. */
+:root{--bg:#050307;--panel:#140d20;--panel2:#21132f;--text:#f7f0ff;--muted:#beaecf;--line:#513264;--cyan:#c49aff;--mint:#c49aff;--ink:#160a24}
+html{background:#050307}
+body{background:#050307;color:var(--text);isolation:isolate;min-height:100vh}
+body::before,body::after{content:"";position:fixed;pointer-events:none;z-index:-1;width:150vw;height:55vh;left:-25vw;top:8vh;border-radius:46% 54% 62% 38% / 50% 35% 65% 50%;background:radial-gradient(ellipse at center,transparent 35%,#a347ed55 42%,#7021bf66 48%,#44107122 59%,transparent 68%);filter:blur(22px);transform:rotate(-25deg);animation:purple-river 22s ease-in-out infinite alternate}
+body::after{top:52vh;left:-35vw;opacity:.65;animation-duration:29s;animation-delay:-12s;transform:rotate(20deg)}
+@keyframes purple-river{from{transform:translate3d(-6%,0,0) rotate(-25deg) scale(1)}to{transform:translate3d(9%,8%,0) rotate(-12deg) scale(1.15,.85)}}
+.quick-nav{background:#09050fed;border-color:#57326f;backdrop-filter:blur(16px)}
+.quick-nav a{color:#eee1ff}
+.quick-nav a:hover,.quick-nav a[aria-current="page"]{background:#ba85f3;color:#140820}
+.panel,.account-card,.report-preview{background:linear-gradient(130deg,#1c1027ed,#0c0812f5);border-color:#503164;box-shadow:0 18px 55px #0006}
+.metric,.finding,.statement{background:#21132feb;border-color:#503164}
+.metric .value{font-variant-numeric:tabular-nums}
+.primary,.mint{background:linear-gradient(120deg,#d2b1ff,#ac6ce8);color:#170925}
+.primary:hover,.mint:hover{background:#dfc6ff}
+.logo{background:linear-gradient(135deg,#e0bdff,#8547cc);color:#190927}
+.account-area{background:#0d0715b8;color:var(--text)}
+.account-copy em,.eyebrow,.account-copy .eyebrow,.mini-mark,.card-heading .mini-mark,.feature-icon,.features a{color:#c89bff}
+.account-copy>p:not(.eyebrow),.account-benefits,.card-heading,.muted,.notice,.settings-panel p,.hero-note,.preview-bottom,.preview-top,.overline,.chart-legend,.research-prompt p,.feature-number,.section-heading .eyebrow,.closing .eyebrow{color:#beaecf}
+input,textarea,.google-button,.secondary{background:#21132f;color:#f7f0ff;border-color:#614078}
+input::placeholder{color:#ad98c0}
+input:focus,textarea:focus{outline-color:#bd85ff88;border-color:#c99fff}
+.notice{background:#100919;border-color:#503164}
+.outline,.signed-in-actions button{color:#dfc5ff;border-color:#684682}
+.google-button:hover{background:#342045}
+.divider{color:#beaecf}
+.divider::before,.divider::after{background:#513264}
+a:focus-visible,button:focus-visible,input:focus-visible{outline-color:#d5b4ff}
+@media(max-width:700px){body::before,body::after{width:190vw;left:-45vw;filter:blur(16px)}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric .value{font-size:19px}}
+@media(prefers-reduced-motion:reduce){body::before,body::after{animation:none}}
+.reduce-motion body::before,.reduce-motion body::after{animation:none!important}

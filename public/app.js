@@ -21,27 +21,42 @@ async function checkHealth() {
   }
 }
 const symbol = () => $("symbol").value.trim().toUpperCase();
+const quoteNumber = (v, digits = 2) => v === null || v === undefined || v === "" ? "Unavailable" : fmt(v, digits);
 $("loadBtn").addEventListener("click", async () => {
-  if (!symbol()) return $("message").textContent = "Enter a ticker symbol first.";
+  const requestedSymbol = symbol();
+  if (!requestedSymbol) return $("message").textContent = "Enter a ticker symbol first.";
   $("loadBtn").disabled = true;
-  $("message").textContent = "Requesting quote and daily prices…";
-  $("marketCards").innerHTML = ""; $("historySection").hidden = true;
+  $("message").textContent = `Requesting stock details for ${requestedSymbol}…`;
+  $("marketCards").innerHTML = "";
   try {
-    const [q,d] = await Promise.all([api(`/api/quote?symbol=${encodeURIComponent(symbol())}`),api(`/api/daily?symbol=${encodeURIComponent(symbol())}`)]);
-    const x = q.quote || {}, rows = d.rows || [];
+    const q = await api(`/api/quote?symbol=${encodeURIComponent(requestedSymbol)}`);
+    const x = q.quote?.raw || {};
+    const timestamp = x.timestamp ? new Date(Number(x.timestamp) * 1000) : null;
+    const updated = timestamp && Number.isFinite(timestamp.getTime()) ? timestamp.toLocaleString() : "Unavailable";
     $("marketCards").innerHTML = [
-      metric("Ticker",q.symbol,"Source: Financial Modeling Prep"),
-      metric("Latest available price",x["05. price"] || "Unavailable", "Provider quote; not guaranteed real-time"),
-      metric("Change",x["09. change"] || "—",x["10. change percent"] || ""),
-      metric("Latest trading day",x["07. latest trading day"] || rows[0]?.date || "—"),
-      metric("Volume",x["06. volume"] || rows[0]?.volume || "—"),
-      metric("Fetched at",new Date(q.fetchedAt).toLocaleString(),"Provider data can be delayed")
+      metric("Company", x.name || "Unavailable", x.symbol || q.symbol),
+      metric("Stock price", quoteNumber(x.price), x.currency || "Quote currency not supplied"),
+      metric("Price change", quoteNumber(x.change)),
+      metric("Change (%)", x.changePercentage == null ? "Unavailable" : quoteNumber(x.changePercentage) + "%"),
+      metric("Volume", quoteNumber(x.volume, 0), "Shares traded"),
+      metric("Day low", quoteNumber(x.dayLow)),
+      metric("Day high", quoteNumber(x.dayHigh)),
+      metric("52-week low", quoteNumber(x.yearLow)),
+      metric("52-week high", quoteNumber(x.yearHigh)),
+      metric("Market cap", quoteNumber(x.marketCap, 0)),
+      metric("50-day average", quoteNumber(x.priceAvg50)),
+      metric("200-day average", quoteNumber(x.priceAvg200)),
+      metric("Exchange", x.exchange || "Unavailable"),
+      metric("Open", quoteNumber(x.open)),
+      metric("Previous close", quoteNumber(x.previousClose)),
+      metric("Quote updated", updated, "Source: Financial Modeling Prep")
     ].join("");
-    $("historyRows").innerHTML = rows.slice(0,20).map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.open)}</td><td>${esc(r.high)}</td><td>${esc(r.low)}</td><td>${esc(r.close)}</td><td>${esc(r.volume)}</td></tr>`).join("");
-    $("historySection").hidden = false;
-    $("message").textContent = "Market data fetched. Verify the symbol, currency, trading date, and provider terms before relying on it.";
-  } catch(e) { $("message").textContent = `Could not fetch market data: ${e.message}`; }
+    $("message").textContent = `Stock details for ${x.symbol || q.symbol}. Data may be delayed; availability depends on your FMP plan. Missing fields are shown as unavailable.`;
+  } catch(e) { $("message").textContent = `Could not fetch stock details: ${e.message}`; }
   finally { $("loadBtn").disabled = false; }
+});
+$("symbol").addEventListener("keydown", event => {
+  if (event.key === "Enter" && !$("loadBtn").disabled) $("loadBtn").click();
 });
 $("fundamentalsBtn").addEventListener("click", async () => {
   if (!symbol()) return $("message").textContent = "Enter a ticker symbol first.";

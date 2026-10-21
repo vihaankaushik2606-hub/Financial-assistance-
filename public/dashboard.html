@@ -7,6 +7,7 @@
 <title>Research dashboard — AI Finance Lab</title>
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/navigation.css">
+<link rel="stylesheet" href="/purple.css">
 </head>
 <body>
 <nav class="quick-nav" aria-label="Account navigation"><a href="/">Home</a><a href="/dashboard.html">Research</a><a href="/account.html">Account</a><a href="/account.html#settings">Settings</a></nav>
@@ -42,25 +43,21 @@
   </section>
 
   <section class="panel">
-    <div class="section-title"><div><div class="eyebrow">01 / Company</div><h2>Build a report</h2></div><span class="tag">Live data is provider-dependent</span></div>
+    <div class="section-title"><div><div class="eyebrow">01 / Company</div><h2>Explore a stock</h2></div><span class="tag">Live data is provider-dependent</span></div>
     <div class="form-grid">
-      <label>Company / ticker
-        <input id="symbol" value="IBM" maxlength="24" placeholder="e.g. IBM">
+      <label>Stock ticker
+        <input id="symbol" maxlength="24" placeholder="e.g. AAPL, MSFT or IBM">
       </label>
       <label>Market data source
         <input value="Financial Modeling Prep (FMP)" disabled>
       </label>
     </div>
     <div class="actions">
-      <button id="loadBtn" class="primary">Fetch market data</button>
+      <button id="loadBtn" class="primary">Get stock details</button>
       <button id="fundamentalsBtn" class="secondary">Fetch financial statements</button>
     </div>
     <p id="message" class="notice" role="status">Waiting for request. Market data may be delayed and some symbols/endpoints may not be covered.</p>
     <div id="marketCards" class="metrics"></div>
-    <div id="historySection" hidden>
-      <h3>Recent daily prices</h3>
-      <div class="table-wrap"><table><thead><tr><th>Date</th><th>Open</th><th>High</th><th>Low</th><th>Close</th><th>Volume</th></tr></thead><tbody id="historyRows"></tbody></table></div>
-    </div>
     <div id="fundamentalsSection" hidden>
       <h3>Financial statements</h3>
       <p class="muted">Raw provider data is shown with availability labels. Do not treat unavailable fields as zero.</p>
