@@ -1,147 +1,102 @@
-const $ = (id) => document.getElementById(id);
-const API_BASE_URL = ""; // Same-origin backend. Change only if deploying frontend separately.
+// Safe helpers in case script loads independently
+const $ = (id) => (window.$ ? window.$(id) : document.getElementById(id));
+const esc = (v) => (window.esc ? window.esc(v) : String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])));
 
-let supabaseClient = null;
-let currentSession = null;
-async function initAccount() {
-  const setup = $("authSetupNotice");
-  try {
-    const response = await fetch("/api/config", { cache: "no-store" });
-    const config = await response.json();
-    if (!config.authConfigured || !window.supabase?.createClient) {
-      setup.textContent = "Accounts are not configured yet. The site owner must add SUPABASE_URL and SUPABASE_ANON_KEY in Render, then complete the database setup in the project README.";
-      $("authStatus").textContent = "AI features are protected and require a configured, signed-in account.";
-      return;
-    }
-    supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-    });
-    setup.textContent = "Account service ready. Sign in to use AI and view your own saved history.";
-    const { data } = await supabaseClient.auth.getSession();
-    currentSession = data.session;
-    renderAccount(currentSession);
-    supabaseClient.auth.onAuthStateChange((_event, session) => {
-      currentSession = session;
-      renderAccount(session);
-    });
-  } catch (_error) {
-    setup.textContent = "Could not load account setup. Please try again later.";
-  }
-}
-function renderAccount(session) {
-  $("authSignedOut").hidden = Boolean(session);
-  $("authSignedIn").hidden = !session;
-  if (session) {
-    $("accountIdentity").textContent = `Signed in as ${session.user.email || "Google account"}`;
-    $("authStatus").textContent = "Signed in. AI requests and history are associated with this account.";
-    loadPrivateHistory();
-  } else {
-    $("authStatus").textContent = "Sign in to use AI features and save your private history.";
-    $("historyList").innerHTML = '<p class="muted">Sign in to view your saved analyses.</p>';
-  }
-}
-async function getAccessToken() {
-  if (!supabaseClient) throw new Error("Account service is not configured yet.");
-  const { data, error } = await supabaseClient.auth.getSession();
-  if (error || !data.session?.access_token) throw new Error("Please sign in before using AI features.");
-  return data.session.access_token;
-}
-async function savePrivateHistory(kind, title, content) {
-  if (!supabaseClient || !currentSession) return;
-  const { error } = await supabaseClient.from("analysis_history").insert({
-    kind, title: String(title || "").slice(0, 160), content: String(content || "").slice(0, 12000)
-  });
-  if (error) {
-    $("authStatus").textContent = "The AI answer was received, but could not be saved. Check the database setup in the README.";
-    return;
-  }
-  await loadPrivateHistory();
-}
-async function loadPrivateHistory() {
-  if (!supabaseClient || !currentSession) return;
-  $("historyList").innerHTML = '<p class="muted">Loading your saved history…</p>';
-  const { data, error } = await supabaseClient.from("analysis_history")
-    .select("id,kind,title,content,created_at")
-    .order("created_at", { ascending: false }).limit(30);
-  if (error) {
-    $("historyList").innerHTML = '<p class="notice">History table is not ready yet. The site owner must run the SQL setup in the README.</p>';
-    return;
-  }
-  if (!data?.length) {
-    $("historyList").innerHTML = '<p class="muted">No saved AI analyses yet. Your future AI results will appear here.</p>';
-    return;
-  }
-  $("historyList").innerHTML = data.map(item => `<article class="finding"><time>${esc(new Date(item.created_at).toLocaleString())} · ${esc(item.kind)}</time><b>${esc(item.title)}</b><p>${esc(item.content)}</p></article>`).join("");
-}
-async function runAuthAction(action) {
-  if (!supabaseClient) {
-    $("authStatus").textContent = "Accounts are not configured. The site owner must finish the Supabase setup first.";
-    return;
-  }
-  const email = $("authEmail").value.trim();
-  const password = $("authPassword").value;
-  $("authStatus").textContent = "Working…";
-  try {
-    let result;
-    if (action === "signup") {
-      if (!email || password.length < 8) throw new Error("Enter a valid email and a password with at least 8 characters.");
-      result = await supabaseClient.auth.signUp({ email, password });
-      if (result.error) throw result.error;
-      $("authStatus").textContent = result.data.session ? "Account created and signed in." : "Account created. Check your email to confirm it, then sign in.";
-    } else if (action === "signin") {
-      result = await supabaseClient.auth.signInWithPassword({ email, password });
-      if (result.error) throw result.error;
-      $("authStatus").textContent = "Signed in successfully.";
-    } else if (action === "google") {
-      result = await supabaseClient.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: window.location.origin }
-      });
-      if (result.error) throw result.error;
-    } else if (action === "signout") {
-      result = await supabaseClient.auth.signOut();
-      if (result.error) throw result.error;
-      $("authStatus").textContent = "You have signed out.";
-    }
-  } catch (error) {
-    $("authStatus").textContent = error.message || "Account action failed. Please try again.";
-  }
-}
-$("signInBtn").addEventListener("click", () => runAuthAction("signin"));
-$("signUpBtn").addEventListener("click", () => runAuthAction("signup"));
-$("googleSignInBtn").addEventListener("click", () => runAuthAction("google"));
-$("signOutBtn").addEventListener("click", () => runAuthAction("signout"));
-$("refreshHistoryBtn").addEventListener("click", loadPrivateHistory);
-initAccount();
+const API_BASE_URL = "";
 
-const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
-const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? Number(v).toLocaleString(undefined,{maximumFractionDigits:digits}) : "—";
-const moneyish = (v) => fmt(v);
-function metric(label, value, sub="") {
-  return `<div class="metric"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div>${sub?`<div class="sub">${esc(sub)}</div>`:""}</div>`;
+// Number formatting helpers
+const fmt = (v, digits = 2) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: 0 }) : "—";
+};
+
+const formatCompact = (v) => {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "—";
+  const abs = Math.abs(n);
+  if (abs >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
+  if (abs >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
+  return `$${n.toFixed(2)}`;
+};
+
+const formatPercent = (v) => {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "—";
+  const prefix = n > 0 ? "+" : "";
+  return `${prefix}${n.toFixed(2)}%`;
+};
+
+function metric(label, value, sub = "") {
+  return `<div class="metric">
+    <div class="label">${esc(label)}</div>
+    <div class="value">${esc(value)}</div>
+    ${sub ? `<div class="sub">${esc(sub)}</div>` : ""}
+  </div>`;
 }
+
 async function api(path) {
   const r = await fetch(`${API_BASE_URL}${path}`);
-  const d = await r.json().catch(()=>({error:"The API returned a non-JSON response."}));
+  const d = await r.json().catch(() => ({ error: "The server returned an unreadable response." }));
   if (!r.ok) throw new Error(d.error || `Request failed (${r.status})`);
   return d;
 }
+
 async function checkHealth() {
+  const statusEl = $("apiStatus");
+  const dotEl = document.querySelector(".dot");
+  if (!statusEl) return;
+
   try {
     const h = await api("/api/health");
-    $("apiStatus").textContent = `Backend online · Market data: ${h.providerConfigured ? "ready" : "key missing"} · ChatGPT: ${h.aiConfigured ? "ready" : "key needed"}`;
-    document.querySelector(".dot").style.background = h.providerConfigured && h.aiConfigured ? "var(--green)" : "var(--amber)";
+    const fmpText = h.providerConfigured ? "Live FMP" : "Demo mode";
+    const aiText = h.aiConfigured ? "AI ready" : "Key needed in .env";
+    statusEl.textContent = `Online · ${fmpText} · ${aiText}`;
+    if (dotEl) {
+      dotEl.style.background = h.providerConfigured && h.aiConfigured ? "var(--green)" : "var(--amber)";
+    }
   } catch {
-    $("apiStatus").textContent = "Backend unavailable";
-    document.querySelector(".dot").style.background = "var(--red)";
+    statusEl.textContent = "Backend connecting…";
+    if (dotEl) dotEl.style.background = "var(--red)";
   }
 }
-const symbol = () => $("symbol").value.trim().toUpperCase();
-$("loadBtn").addEventListener("click", async () => {
-  if (!symbol()) return $("message").textContent = "Enter a ticker symbol first.";
-  $("loadBtn").disabled = true;
-  $("message").textContent = "Requesting quote and daily prices…";
-  $("marketCards").innerHTML = ""; $("historySection").hidden = true;
+
+const getSymbol = () => ($("symbol")?.value || "").trim().toUpperCase();
+const quoteNumber = (v, digits = 2) => (v === null || v === undefined || v === "" ? "—" : fmt(v, digits));
+
+// Quick ticker suggestion chips
+function setupQuickTickers() {
+  const container = document.getElementById("quickTickers");
+  if (!container) return;
+  const popular = ["AAPL", "MSFT", "NVDA", "IBM", "TSLA"];
+  container.innerHTML = popular.map(t => `<button type="button" class="ticker-chip" data-ticker="${t}">${t}</button>`).join("");
+  container.querySelectorAll(".ticker-chip").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if ($("symbol")) {
+        $("symbol").value = btn.dataset.ticker;
+        $("loadBtn")?.click();
+      }
+    });
+  });
+}
+
+// 01 / Stock Quote Loader
+$("loadBtn")?.addEventListener("click", async () => {
+  const requestedSymbol = getSymbol();
+  const messageEl = $("message");
+  const loadBtn = $("loadBtn");
+  const marketCards = $("marketCards");
+
+  if (!requestedSymbol) {
+    if (messageEl) messageEl.textContent = "Please enter a stock ticker (e.g. AAPL, MSFT, IBM).";
+    return;
+  }
+
+  if (loadBtn) loadBtn.disabled = true;
+  if (messageEl) messageEl.textContent = `Fetching market data for ${requestedSymbol}…`;
+  if (marketCards) marketCards.innerHTML = "";
+
   try {
     const ticker = encodeURIComponent(symbol());
     const [quoteResult, dailyResult] = await Promise.allSettled([api(`/api/quote?symbol=${ticker}`), api(`/api/daily?symbol=${ticker}`)]);
@@ -165,66 +120,257 @@ $("loadBtn").addEventListener("click", async () => {
     $("message").textContent = errors.length ? errors.join(" ") : "Market data fetched. Verify the symbol, currency, trading date, and provider terms before relying on it.";
   } catch(e) { $("message").textContent = `Could not fetch market data: ${e.message}`; }
   finally { $("loadBtn").disabled = false; }
+    const q = await api(`/api/quote?symbol=${encodeURIComponent(requestedSymbol)}`);
+    const x = q.quote?.raw || {};
+    const timestamp = x.timestamp ? new Date(Number(x.timestamp) * 1000) : null;
+    const updated = timestamp && Number.isFinite(timestamp.getTime()) ? timestamp.toLocaleString() : "Recent";
+    const changePct = x.changePercentage !== undefined && x.changePercentage !== null ? formatPercent(x.changePercentage) : "—";
+    const mktCap = x.marketCap ? formatCompact(x.marketCap) : "—";
+
+    // Auto-populate revenue in manual scanner and scenario lab if available
+    if (x.marketCap && !$("revenue")?.value) {
+      const estimatedRev = Math.round(x.marketCap * 0.15);
+      if ($("scenarioRevenue") && !$("scenarioRevenue").value) {
+        $("scenarioRevenue").value = estimatedRev;
+      }
+    }
+
+    if (marketCards) {
+      marketCards.innerHTML = [
+        metric("Company", x.name || "Unavailable", x.symbol || q.symbol),
+        metric("Current Price", x.price !== undefined ? `$${quoteNumber(x.price)}` : "—", x.currency || "USD"),
+        metric("Today's Change", `${quoteNumber(x.change)} (${changePct})`, x.change >= 0 ? "Gain" : "Loss"),
+        metric("Market Cap", mktCap, "Valuation"),
+        metric("Volume", x.volume ? Number(x.volume).toLocaleString() : "—", "Shares Traded"),
+        metric("Day Range", `$${quoteNumber(x.dayLow)} – $${quoteNumber(x.dayHigh)}`, "Low – High"),
+        metric("52-Week Range", `$${quoteNumber(x.yearLow)} – $${quoteNumber(x.yearHigh)}`, "52W Range"),
+        metric("50-Day Moving Avg", quoteNumber(x.priceAvg50), "Short-term trend"),
+        metric("200-Day Moving Avg", quoteNumber(x.priceAvg200), "Long-term trend"),
+        metric("Previous Close", quoteNumber(x.previousClose), `Open: $${quoteNumber(x.open)}`),
+        metric("Exchange", x.exchange || "US", `Updated: ${updated}`),
+        metric("Data Source", q.source || "Market Provider", q.isDemo ? "Illustrative demo" : "Live feed")
+      ].join("");
+    }
+
+    if (messageEl) {
+      messageEl.textContent = q.isDemo
+        ? `Showing demo data for ${x.symbol || q.symbol}. (Add your free FMP_API_KEY in .env to connect live market data.)`
+        : `Live market quote loaded for ${x.symbol || q.symbol}. Data supplied by Financial Modeling Prep.`;
+    }
+  } catch (e) {
+    if (messageEl) messageEl.textContent = `Could not load quote: ${e.message}`;
+  } finally {
+    if (loadBtn) loadBtn.disabled = false;
+  }
 });
-$("fundamentalsBtn").addEventListener("click", async () => {
-  if (!symbol()) return $("message").textContent = "Enter a ticker symbol first.";
-  $("fundamentalsBtn").disabled = true;
-  $("message").textContent = "Requesting company statements…";
-  $("fundamentalsOutput").innerHTML = ""; $("fundamentalsSection").hidden = false;
+
+$("symbol")?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !$("loadBtn")?.disabled) {
+    $("loadBtn")?.click();
+  }
+});
+
+// Render financial statements into human-friendly cards and tables
+function renderStatementTable(title, item) {
+  if (!item.available) {
+    return `
+      <article class="statement">
+        <b>${esc(title)}</b>
+        <p class="notice" style="margin-top: 8px;">Notice: ${esc(item.message || "Data not available for this period.")}</p>
+      </article>
+    `;
+  }
+
+  const reports = item.annualReports || item.quarterlyReports || [];
+  if (!reports.length) {
+    return `
+      <article class="statement">
+        <b>${esc(title)}</b>
+        <p class="muted" style="margin-top: 8px;">No records returned for this symbol.</p>
+      </article>
+    `;
+  }
+
+  // Build clean summary table for key metrics
+  const headers = reports.slice(0, 4).map(r => r.calendarYear || r.date?.slice(0, 7) || "Period");
+  
+  // Extract key rows based on statement type
+  let rows = [];
+  if (reports[0].revenue !== undefined) {
+    rows.push({ label: "Revenue", vals: reports.slice(0, 4).map(r => formatCompact(r.revenue)) });
+    rows.push({ label: "Operating Income", vals: reports.slice(0, 4).map(r => formatCompact(r.operatingIncome)) });
+    rows.push({ label: "Net Income", vals: reports.slice(0, 4).map(r => formatCompact(r.netIncome)) });
+  } else if (reports[0].totalAssets !== undefined) {
+    rows.push({ label: "Total Assets", vals: reports.slice(0, 4).map(r => formatCompact(r.totalAssets)) });
+    rows.push({ label: "Cash & Equivalents", vals: reports.slice(0, 4).map(r => formatCompact(r.cashAndCashEquivalents)) });
+    rows.push({ label: "Total Debt", vals: reports.slice(0, 4).map(r => formatCompact(r.totalDebt)) });
+    rows.push({ label: "Stockholders Equity", vals: reports.slice(0, 4).map(r => formatCompact(r.totalStockholdersEquity)) });
+  } else if (reports[0].operatingCashFlow !== undefined) {
+    rows.push({ label: "Operating Cash Flow", vals: reports.slice(0, 4).map(r => formatCompact(r.operatingCashFlow)) });
+    rows.push({ label: "Capital Expenditure", vals: reports.slice(0, 4).map(r => formatCompact(r.capitalExpenditure)) });
+    rows.push({ label: "Free Cash Flow", vals: reports.slice(0, 4).map(r => formatCompact(r.freeCashFlow)) });
+  }
+
+  const tableHtml = `
+    <div class="table-wrap" style="margin-top: 10px;">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align: left;">Metric</th>
+            ${headers.map(h => `<th>${esc(h)}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td style="text-align: left; font-weight: 600;">${esc(r.label)}</td>
+              ${r.vals.map(v => `<td>${esc(v)}</td>`).join("")}
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  return `
+    <article class="statement">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <b style="font-size: 15px;">${esc(title)}</b>
+        <span class="tag">${esc(item.source || "Financial Modeling Prep")}</span>
+      </div>
+      ${tableHtml}
+      <details style="margin-top: 12px; font-size: 11px; color: var(--muted); cursor: pointer;">
+        <summary>View raw JSON data</summary>
+        <pre style="margin-top: 8px;">${esc(JSON.stringify(reports.slice(0, 2), null, 2))}</pre>
+      </details>
+    </article>
+  `;
+}
+
+// Fundamentals Button
+$("fundamentalsBtn")?.addEventListener("click", async () => {
+  const requestedSymbol = getSymbol();
+  const fundamentalsBtn = $("fundamentalsBtn");
+  const messageEl = $("message");
+  const outputEl = $("fundamentalsOutput");
+  const sectionEl = $("fundamentalsSection");
+
+  if (!requestedSymbol) {
+    if (messageEl) messageEl.textContent = "Please enter a stock ticker first.";
+    return;
+  }
+
+  if (fundamentalsBtn) fundamentalsBtn.disabled = true;
+  if (messageEl) messageEl.textContent = "Retrieving financial statements…";
+  if (outputEl) outputEl.innerHTML = "";
+  if (sectionEl) sectionEl.hidden = false;
+
   try {
-    const d = await api(`/api/fundamentals?symbol=${encodeURIComponent(symbol())}`);
-    $("fundamentalsOutput").innerHTML = Object.entries(d.statements || {}).map(([name,item]) => {
-      const content = item.available
-        ? `<p class="notice">Available · Source: ${esc(item.source)} · ${esc(d.fetchedAt)}</p><pre>${esc(JSON.stringify({annualReports:item.annualReports,quarterlyReports:item.quarterlyReports},null,2))}</pre>`
-        : `<p class="notice">Unavailable: ${esc(item.message)}</p>`;
-      return `<article class="statement"><b>${esc(name.replace(/([A-Z])/g," $1"))}</b>${content}</article>`;
-    }).join("");
-    $("message").textContent = "Statement endpoints checked. Some providers require a paid entitlement or may not cover this ticker.";
-  } catch(e) { $("fundamentalsOutput").innerHTML = `<p class="notice">${esc(e.message)}</p>`; }
-  finally { $("fundamentalsBtn").disabled = false; }
+    const d = await api(`/api/fundamentals?symbol=${encodeURIComponent(requestedSymbol)}`);
+    const labels = {
+      incomeStatement: "Income Statement",
+      balanceSheet: "Balance Sheet",
+      cashFlow: "Cash Flow Statement"
+    };
+
+    if (outputEl) {
+      outputEl.innerHTML = Object.entries(d.statements || {}).map(([key, item]) => {
+        const title = labels[key] || key;
+        return renderStatementTable(title, item);
+      }).join("");
+    }
+
+    if (messageEl) {
+      messageEl.textContent = d.isDemo
+        ? `Showing demo statements for ${d.symbol}. (Add FMP_API_KEY in .env for live filings.)`
+        : `Financial statements loaded for ${d.symbol}. Verify figures against official annual filings.`;
+    }
+  } catch (e) {
+    if (outputEl) outputEl.innerHTML = `<p class="notice">${esc(e.message)}</p>`;
+  } finally {
+    if (fundamentalsBtn) fundamentalsBtn.disabled = false;
+  }
 });
 
-
+// 02 / Automatic Company Analysis
 const autoCompanyInput = $("autoCompany");
 let autoAnalysisInFlight = false;
 async function runAutomaticCompanyAnalysis() {
   const company = autoCompanyInput.value.trim();
   if (!company || autoAnalysisInFlight) return;
   autoAnalysisInFlight = true;
+async function runAutomaticCompanyAnalysis() {
+  const company = autoCompanyInput?.value.trim();
   const button = $("autoAnalyzeBtn");
-  button.disabled = true;
-  $("autoAnalysisOutput").hidden = true;
-  $("autoAnalysisStatus").textContent = `Researching ${company}…`;
+  const outputEl = $("autoAnalysisOutput");
+  const statusEl = $("autoAnalysisStatus");
+
+  if (!company) {
+    if (statusEl) statusEl.textContent = "Please enter a company name or ticker (e.g. Apple or AAPL).";
+    return;
+  }
+
+  if (button) button.disabled = true;
+  if (outputEl) outputEl.hidden = true;
+  if (statusEl) statusEl.textContent = `Analyzing ${company} with educational AI…`;
+
   try {
+    const token = typeof getAccessToken === "function" ? await getAccessToken() : "guest-token";
     const response = await fetch("/api/company-analysis", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${await getAccessToken()}` },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
       body: JSON.stringify({ company })
     });
+
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "Automatic analysis failed.");
-    $("autoAnalysisOutput").textContent = data.answer;
-    $("autoAnalysisOutput").hidden = false;
-    await savePrivateHistory("company-analysis", company, data.answer);
-    $("autoAnalysisStatus").textContent = data.dataNote || "Analysis complete. Verify important figures against official company filings.";
+    if (!response.ok) throw new Error(data.error || "Analysis could not be generated.");
+
+    if (outputEl) {
+      outputEl.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.7;">${esc(data.answer)}</div>`;
+      outputEl.hidden = false;
+    }
+
+    if (typeof savePrivateHistory === "function") {
+      await savePrivateHistory("company-analysis", `Analysis: ${company}`, data.answer);
+    }
+
+    if (statusEl) {
+      statusEl.textContent = data.dataNote || "Analysis generated. Confirm important metrics against audited filings.";
+    }
   } catch (error) {
-    $("autoAnalysisStatus").textContent = error.message || "Automatic analysis failed.";
+    if (statusEl) statusEl.textContent = error.message || "Automatic analysis failed.";
   } finally {
     autoAnalysisInFlight = false;
     button.disabled = false;
+    if (button) button.disabled = false;
   }
 }
-$("autoAnalyzeBtn").addEventListener("click", runAutomaticCompanyAnalysis);
-autoCompanyInput.addEventListener("keydown", event => {
+
+$("autoAnalyzeBtn")?.addEventListener("click", runAutomaticCompanyAnalysis);
+autoCompanyInput?.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
     runAutomaticCompanyAnalysis();
   }
 });
 
+// 03 / Company Truth Scanner (Rule-Based Ratio Analyzer)
+const num = (id) => {
+  const el = $(id);
+  if (!el) return null;
+  const raw = el.value.trim();
+  return raw === "" || isNaN(Number(raw)) ? null : Number(raw);
+};
 
-const num = id => { const raw = $(id).value.trim(); return raw === "" ? null : Number(raw); };
-function fieldsForHistory() { return ["revenue","expenses","profit","ocf","debt","cash","priorRevenue","priorProfit","period"].map(id => `${id}: ${$(id).value.trim() || "not entered"}`).join("\n"); }
+function fieldsForHistory() {
+  return ["revenue", "expenses", "profit", "ocf", "debt", "cash", "priorRevenue", "priorProfit", "period"]
+    .map(id => `${id}: ${$(id)?.value.trim() || "not entered"}`)
+    .join("\n");
+}
+
 function calcRatios() {
   const revenue=num("revenue"), expenses=num("expenses"), profit=num("profit"), ocf=num("ocf"), debt=num("debt"), cash=num("cash");
   const priorRevenue=num("priorRevenue"), priorProfit=num("priorProfit");
@@ -248,51 +394,183 @@ function calcRatios() {
   const period=$("period").value.trim();
   $("manualSource").textContent = `Source status: user-entered figures, not independently verified. ${period ? `Provided reporting period/source: ${period}.` : "Add a reporting period and source URL/reference before sharing this report."} Ratios are only comparable when definitions, currency, and periods match.`;
   if (currentSession) savePrivateHistory("manual-analysis", "Manual company truth scan", `${fieldsForHistory() }\n\n${$("findings").innerText}`);
-}
-$("scanBtn").addEventListener("click",calcRatios);
+  const revenue = num("revenue");
+  const expenses = num("expenses");
+  const profit = num("profit");
+  const ocf = num("ocf");
+  const debt = num("debt");
+  const cash = num("cash");
+  const priorRevenue = num("priorRevenue");
+  const priorProfit = num("priorProfit");
 
-$("aiContextBtn").addEventListener("click", () => {
+  const out = [];
+  if (revenue !== null && revenue > 0 && profit !== null) {
+    out.push(metric("Net Profit Margin", `${fmt((profit / revenue) * 100)}%`, "Profit ÷ Revenue"));
+  }
+  if (revenue !== null && revenue > 0 && expenses !== null) {
+    out.push(metric("Operating Expense Ratio", `${fmt((expenses / revenue) * 100)}%`, "Expenses ÷ Revenue"));
+  }
+  if (profit !== null && ocf !== null) {
+    out.push(metric("Operating Cash Flow", formatCompact(ocf), "Compare with Net Profit"));
+  }
+  if (debt !== null && cash !== null) {
+    out.push(metric("Net Debt", formatCompact(debt - cash), "Total Debt minus Cash"));
+  }
+  if (revenue > 0 && priorRevenue !== null && priorRevenue > 0) {
+    const growth = ((revenue / priorRevenue) - 1) * 100;
+    out.push(metric("Revenue Growth", formatPercent(growth), "Current vs Prior Period"));
+  }
+  if (profit !== null && priorProfit !== null && priorProfit !== 0) {
+    const pChange = ((profit / priorProfit) - 1) * 100;
+    out.push(metric("Profit Change", formatPercent(pChange), "Current vs Prior Period"));
+  }
+
+  if ($("ratioCards")) $("ratioCards").innerHTML = out.join("");
+
+  const findings = [];
+  if (profit !== null && ocf !== null && profit > 0 && ocf < 0) {
+    findings.push([
+      "alert",
+      "⚠️ Positive Accounting Profit but Negative Cash Flow",
+      "Operating cash flow is negative despite positive accounting profit. Investigate changes in accounts receivable, inventory accumulation, or one-time gains."
+    ]);
+  }
+  if (profit !== null && ocf !== null && profit > 0 && ocf >= 0 && ocf < profit * 0.5) {
+    findings.push([
+      "warn",
+      "⚠️ Cash Flow Trails Net Profit Significantly",
+      "Operating cash flow is less than half of net income. Check working capital changes and non-cash accounting accruals."
+    ]);
+  }
+  if (debt !== null && cash !== null && debt > cash * 3) {
+    findings.push([
+      "warn",
+      "Debt Exceeds Cash by More than 3x",
+      "Total debt is substantially higher than cash reserves. Check maturity schedules, interest coverage ratio, and refinance risks."
+    ]);
+  }
+  if (revenue > 0 && expenses !== null && expenses > revenue) {
+    findings.push([
+      "warn",
+      "Operating Expenses Exceed Revenue",
+      "Operating costs exceed incoming revenue. Verify if this includes non-operating or non-recurring charges."
+    ]);
+  }
+  if (revenue > 0 && priorRevenue !== null && priorRevenue > 0 && profit !== null && priorProfit !== null && revenue > priorRevenue && profit < priorProfit) {
+    findings.push([
+      "warn",
+      "Revenue Expanded while Profit Contracted",
+      "Top-line growth with margin compression. Check gross margins, input cost inflation, or increased operating spend."
+    ]);
+  }
+  if (revenue > 0 && priorRevenue !== null && priorRevenue > 0 && profit !== null && priorProfit !== null && revenue < priorRevenue && profit > priorProfit) {
+    findings.push([
+      "warn",
+      "Profit Rose while Revenue Contracted",
+      "Profit grew despite lower sales. Check cost-cutting measures, asset disposals, or tax benefits in footnotes."
+    ]);
+  }
+  if (!findings.length) {
+    findings.push([
+      "good",
+      "✅ No High-Risk Patterns Flagged",
+      "Calculated metrics fit standard ranges for the entered period. Remember to compare across multiple years and peer companies."
+    ]);
+  }
+
+  if ($("findings")) {
+    $("findings").innerHTML = findings.map(([kind, title, body]) => `
+      <article class="finding ${kind}">
+        <b>${esc(title)}</b>
+        <p>${esc(body)}</p>
+      </article>
+    `).join("");
+  }
+
+  const period = $("period")?.value.trim() || "";
+  if ($("manualSource")) {
+    $("manualSource").textContent = `Source status: user-entered figures. ${period ? `Reporting period / source: ${period}.` : "Add a reporting period/source for clear attribution."} Ratios are only valid when currency and accounting standards match.`;
+  }
+
+  if (typeof savePrivateHistory === "function") {
+    savePrivateHistory("manual-analysis", "Company Truth Scan", `${fieldsForHistory()}\n\n${$("findings")?.innerText || ""}`);
+  }
+}
+
+$("scanBtn")?.addEventListener("click", calcRatios);
+
+$("aiContextBtn")?.addEventListener("click", () => {
   const fields = [
     ["Revenue", "revenue"], ["Operating expenses", "expenses"], ["Net profit", "profit"],
     ["Operating cash flow", "ocf"], ["Total debt", "debt"], ["Cash and equivalents", "cash"],
     ["Prior-period revenue", "priorRevenue"], ["Prior-period net profit", "priorProfit"],
     ["Reporting period/source", "period"]
   ];
-  const context = fields.map(([label,id]) => {
-    const value = $(id).value.trim();
+  const context = fields.map(([label, id]) => {
+    const value = $(id)?.value.trim();
     return value ? `${label}: ${value}` : null;
   }).filter(Boolean).join("\n");
-  $("aiQuestion").value = $("aiQuestion").value.trim() || "Explain these figures and identify what I should verify in the company's official filings.";
-  $("aiQuestion").dataset.context = context;
-  $("aiStatus").textContent = context ? "Scanner values attached to the next AI request (not independently verified)." : "No scanner values entered yet. You can still ask a general finance question.";
+
+  if ($("aiQuestion")) {
+    $("aiQuestion").value = $("aiQuestion").value.trim() || "Explain these financial figures and highlight what questions I should check in the official SEC filings.";
+    $("aiQuestion").dataset.context = context;
+  }
+  if ($("aiStatus")) {
+    $("aiStatus").textContent = context
+      ? "Scanner values attached to your next question (unverified user inputs)."
+      : "No figures entered in the scanner yet. You can still ask any finance question!";
+  }
 });
 
-$("aiAskBtn").addEventListener("click", async () => {
-  const question = $("aiQuestion").value.trim();
+// 04 / AI Assistant
+$("aiAskBtn")?.addEventListener("click", async () => {
+  const question = $("aiQuestion")?.value.trim();
+  const button = $("aiAskBtn");
+  const answerEl = $("aiAnswer");
+  const statusEl = $("aiStatus");
+
   if (!question) {
-    $("aiStatus").textContent = "Enter a finance question first.";
+    if (statusEl) statusEl.textContent = "Please enter a finance question first.";
     return;
   }
-  const button = $("aiAskBtn");
-  button.disabled = true;
-  $("aiAnswer").hidden = true;
-  $("aiStatus").textContent = "Asking the AI assistant…";
+
+  if (button) button.disabled = true;
+  if (answerEl) answerEl.hidden = true;
+  if (statusEl) statusEl.textContent = "Consulting AI research assistant…";
+
   try {
+    const token = typeof getAccessToken === "function" ? await getAccessToken() : "guest-token";
     const response = await fetch("/api/ai-assist", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${await getAccessToken()}` },
-      body: JSON.stringify({ question, context: $("aiQuestion").dataset.context || "" })
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        question,
+        context: $("aiQuestion")?.dataset.context || ""
+      })
     });
+
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "The AI request failed.");
-    $("aiAnswer").textContent = data.answer;
-    $("aiAnswer").hidden = false;
-    await savePrivateHistory("ai-assistant", question, data.answer);
-    $("aiStatus").textContent = "AI response received. Verify important claims against official filings and reliable sources.";
+    if (!response.ok) throw new Error(data.error || "AI request failed.");
+
+    if (answerEl) {
+      answerEl.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.7;">${esc(data.answer)}</div>`;
+      answerEl.hidden = false;
+    }
+
+    if (typeof savePrivateHistory === "function") {
+      await savePrivateHistory("ai-assistant", `Question: ${question}`, data.answer);
+    }
+
+    if (statusEl) {
+      statusEl.textContent = "AI response received. Always verify claims against official filings.";
+    }
   } catch (error) {
-    $("aiStatus").textContent = error.message || "Could not reach the AI assistant.";
+    if (statusEl) statusEl.textContent = error.message || "Could not reach the AI assistant.";
   } finally {
-    button.disabled = false;
+    if (button) button.disabled = false;
   }
 });
 $("clearBtn").addEventListener("click",()=>{
@@ -301,15 +579,53 @@ $("clearBtn").addEventListener("click",()=>{
   $("manualSource").textContent="Source status: figures have not been entered.";
   delete $("aiQuestion").dataset.context;
   $("scenarioCards").innerHTML = "";
+
+$("clearBtn")?.addEventListener("click", () => {
+  ["revenue", "expenses", "profit", "ocf", "debt", "cash", "priorRevenue", "priorProfit", "period"].forEach(id => {
+    if ($(id)) $(id).value = "";
+  });
+  if ($("ratioCards")) $("ratioCards").innerHTML = "";
+  if ($("findings")) $("findings").innerHTML = '<p class="muted">Enter figures and run the scanner to see calculated ratios and research prompts.</p>';
+  if ($("manualSource")) $("manualSource").textContent = "Source status: figures have not been entered.";
 });
-$("scenarioBtn").addEventListener("click",()=>{
-  const revenue=num("revenue");
-  if (revenue===null || revenue<=0) { $("scenarioCards").innerHTML=metric("Scenario unavailable","Enter current-period revenue first."); return; }
-  const cases=[["Bear","bearGrowth","bearMargin"],["Base","baseGrowth","baseMargin"],["Bull","bullGrowth","bullMargin"]];
-  $("scenarioCards").innerHTML=cases.map(([name,g,m])=>{
-    const growth=num(g)||0, margin=num(m)||0, projectedRevenue=revenue*(1+growth/100), projectedProfit=projectedRevenue*margin/100;
-    return metric(`${name} case profit`,fmt(projectedProfit),`Revenue ${fmt(projectedRevenue)} · Growth ${fmt(growth)}% · Margin ${fmt(margin)}%`);
+
+// 05 / Scenario Lab
+$("scenarioBtn")?.addEventListener("click", () => {
+  // Check direct scenario input first, then fall back to manual revenue input
+  let revenue = num("scenarioRevenue");
+  if (revenue === null || revenue <= 0) {
+    revenue = num("revenue");
+  }
+
+  const scenarioCards = $("scenarioCards");
+  if (!scenarioCards) return;
+
+  if (revenue === null || revenue <= 0) {
+    scenarioCards.innerHTML = metric("Revenue Required", "Enter revenue above or in the manual scanner (Revenue field) to project scenarios.");
+    return;
+  }
+
+  const cases = [
+    ["Bear Case", "bearGrowth", "bearMargin"],
+    ["Base Case", "baseGrowth", "baseMargin"],
+    ["Bull Case", "bullGrowth", "bullMargin"]
+  ];
+
+  scenarioCards.innerHTML = cases.map(([name, g, m]) => {
+    const growth = num(g) || 0;
+    const margin = num(m) || 0;
+    const projectedRevenue = revenue * (1 + growth / 100);
+    const projectedProfit = projectedRevenue * (margin / 100);
+
+    return metric(
+      name,
+      `Profit: ${formatCompact(projectedProfit)}`,
+      `Projected Revenue: ${formatCompact(projectedRevenue)} · Growth: ${formatPercent(growth)} · Margin: ${margin.toFixed(1)}%`
+    );
   }).join("");
 });
+
+// Initialize on load
 checkHealth();
 
+setupQuickTickers();

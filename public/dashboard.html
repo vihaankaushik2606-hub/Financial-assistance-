@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Evidence-first company financial research dashboard">
+<title>Research dashboard — AI Finance Lab</title>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/navigation.css">
+<link rel="stylesheet" href="/purple.css">
+</head>
+<body>
+<nav class="quick-nav" aria-label="Account navigation"><a href="/">Home</a><a href="/dashboard.html">Research</a><a href="/account.html">Account</a><a href="/account.html#settings">Settings</a></nav>
+<header class="topbar">
+  <a class="brand" href="/"><span class="logo">F</span><span><b>AI Finance Lab</b><small>Company Truth Report</small></span></a>
+  <div class="status"><span class="dot"></span><span id="apiStatus">Checking backend…</span></div>
+</header>
+<main class="container">
+  <section class="hero">
+    <div class="eyebrow">Research-first financial intelligence</div>
+    <h1>Look beyond the headline numbers.</h1>
+    <p>Explore financial performance, inspect potential warning signs, and test transparent scenarios. Every number should have a source and reporting period.</p>
+  </section>
+
+  <section class="panel" id="accountPanel">
+    <div class="section-title"><div><div class="eyebrow">Account</div><h2>Your AI Finance Lab account</h2></div><span class="tag">Private per-user history</span></div>
+    <p class="muted">Create an account with email/password or continue with Google. AI tools require sign-in. Your history is stored under your account and protected by database access policies.</p>
+    <div id="authSetupNotice" class="notice">Checking account setup…</div>
+    <div id="authSignedOut">
+      <div class="form-grid">
+        <label>Email address<input id="authEmail" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com"></label>
+        <label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="At least 8 characters"></label>
+      </div>
+      <div class="actions"><button id="signInBtn" class="primary">Sign in</button><button id="signUpBtn" class="secondary">Create account</button><button id="googleSignInBtn" class="secondary">Continue with Google</button></div>
+    </div>
+    <div id="authSignedIn" hidden>
+      <p id="accountIdentity" class="notice">Signed in</p>
+      <div class="actions"><button id="signOutBtn" class="secondary">Sign out</button><button id="refreshHistoryBtn" class="secondary">Refresh my history</button></div>
+      <h3>My private AI history</h3>
+      <div id="historyList" class="findings"><p class="muted">Your saved analyses will appear here.</p></div>
+    </div>
+    <p id="authStatus" class="notice" role="status">Sign in to use AI features and save your private history.</p>
+  </section>
+
+  <section class="panel">
+    <div class="section-title"><div><div class="eyebrow">01 / Company</div><h2>Explore a stock</h2></div><span class="tag">Live data is provider-dependent</span></div>
+    <div class="form-grid">
+      <label>Stock ticker
+        <input id="symbol" maxlength="24" placeholder="e.g. AAPL, MSFT, NVDA or IBM">
+        <div id="quickTickers" style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;"></div>
+      </label>
+      <label>Market data source
+        <input value="Financial Modeling Prep (FMP)" disabled>
+      </label>
+    </div>
+    <div class="actions">
+      <button id="loadBtn" class="primary">Get stock details</button>
+      <button id="fundamentalsBtn" class="secondary">Fetch financial statements</button>
+    </div>
+    <p id="message" class="notice" role="status">Waiting for request. Market data may be delayed and some symbols/endpoints may not be covered.</p>
+    <div id="marketCards" class="metrics"></div>
+    <div id="fundamentalsSection" hidden>
+      <h3>Financial statements</h3>
+      <p class="muted">Raw provider data is shown with availability labels. Do not treat unavailable fields as zero.</p>
+      <div id="fundamentalsOutput" class="statement-grid"></div>
+    </div>
+  </section>
+
+
+  <section class="panel">
+    <div class="section-title"><div><div class="eyebrow">02 / Automated research</div><h2>Automatic company analysis</h2></div><span class="tag">AI-assisted · check sources</span></div>
+    <p class="muted">Enter a stock ticker (for example, IBM) or a company name, then press Enter or leave the field. AI will summarize available information and clearly flag missing financial data. Company names are not automatically converted to tickers yet.</p>
+    <label>Company name or stock ticker
+      <input id="autoCompany" maxlength="120" placeholder="e.g. IBM or Microsoft">
+    </label>
+    <div class="actions"><button id="autoAnalyzeBtn" class="primary">Analyze company</button></div>
+    <p id="autoAnalysisStatus" class="notice" role="status">Ready. Analysis requires OPENAI_API_KEY configured in your environment settings. Financial statement availability depends on your data provider.</p>
+    <article id="autoAnalysisOutput" class="finding" hidden></article>
+  </section>
+
+  <section class="panel">
+    <div class="section-title"><div><div class="eyebrow">03 / Manual analysis (optional fallback)</div><h2>Company Truth Scanner</h2></div><span class="tag">Rule-based · not AI</span></div>
+    <p class="muted">Enter figures from a reliable filing. Use the same currency and matching reporting periods. The app will calculate ratios and identify patterns to investigate, not assert fraud or predict outcomes.</p>
+    <div class="form-grid three">
+      <label>Revenue (current period)<input id="revenue" type="number" min="0" step="any" placeholder="e.g. 1000"></label>
+      <label>Operating expenses<input id="expenses" type="number" min="0" step="any" placeholder="e.g. 760"></label>
+      <label>Net profit<input id="profit" type="number" step="any" placeholder="e.g. 120"></label>
+      <label>Operating cash flow<input id="ocf" type="number" step="any" placeholder="e.g. 70"></label>
+      <label>Total debt<input id="debt" type="number" min="0" step="any" placeholder="e.g. 250"></label>
+      <label>Cash & equivalents<input id="cash" type="number" min="0" step="any" placeholder="e.g. 90"></label>
+      <label>Prior-period revenue<input id="priorRevenue" type="number" min="0" step="any" placeholder="Optional"></label>
+      <label>Prior-period net profit<input id="priorProfit" type="number" step="any" placeholder="Optional"></label>
+      <label>Reporting period / source<input id="period" placeholder="e.g. FY2025, annual report URL"></label>
+    </div>
+    <div class="actions"><button id="scanBtn" class="primary">Analyze entered figures</button><button id="clearBtn" class="secondary">Clear figures</button></div>
+    <div id="ratioCards" class="metrics"></div>
+    <div id="findings" class="findings"><p class="muted">Enter figures and run the scanner to see calculated ratios and research prompts.</p></div>
+    <p id="manualSource" class="notice">Source status: figures have not been entered. Any manual figures remain unverified until you check the cited filing.</p>
+  </section>
+
+  <section class="panel">
+    <div class="section-title"><div><div class="eyebrow">04 / AI assistant</div><h2>Ask the AI Research Assistant</h2></div><span class="tag">AI-assisted · verify answers</span></div>
+    <p class="muted">Ask for explanations of financial terms, ratios, or warning patterns. You can optionally include your scanner results. Do not enter passwords, API keys, or private information.</p>
+    <label>Your finance question
+      <textarea id="aiQuestion" rows="3" maxlength="2000" placeholder="e.g. Explain why operating cash flow can be lower than net profit."></textarea>
+    </label>
+    <div class="actions"><button id="aiAskBtn" class="primary">Ask AI Assistant</button><button id="aiContextBtn" class="secondary">Attach Scanner Figures</button></div>
+    <p id="aiStatus" class="notice" role="status">AI assistant is ready. (Add OPENAI_API_KEY in .env for live AI responses).</p>
+    <article id="aiAnswer" class="finding" hidden></article>
+  </section>
+
+  <section class="panel">
+    <div class="section-title"><div><div class="eyebrow">05 / Scenario lab</div><h2>Test assumptions, not predictions</h2></div><span class="tag">Illustrative only</span></div>
+    <p class="muted">Scenarios calculate forward projections from your revenue and assumed growth/margin. They help visualize possibilities, not guarantee target prices.</p>
+    <div class="form-grid" style="margin-bottom: 14px;">
+      <label>Annual Revenue ($)
+        <input id="scenarioRevenue" type="number" min="0" step="any" placeholder="e.g. 100000000 (auto-filled from loaded stock or scanner)">
+      </label>
+    </div>
+    <div class="form-grid three">
+      <label>Bear case growth (%)<input id="bearGrowth" type="number" value="-5" step="1"></label>
+      <label>Base case growth (%)<input id="baseGrowth" type="number" value="5" step="1"></label>
+      <label>Bull case growth (%)<input id="bullGrowth" type="number" value="12" step="1"></label>
+      <label>Bear net margin (%)<input id="bearMargin" type="number" value="6" step="0.5"></label>
+      <label>Base net margin (%)<input id="baseMargin" type="number" value="10" step="0.5"></label>
+      <label>Bull net margin (%)<input id="bullMargin" type="number" value="13" step="0.5"></label>
+    </div>
+    <div class="actions"><button id="scenarioBtn" class="primary">Calculate scenarios</button></div>
+    <div id="scenarioCards" class="metrics"></div>
+  </section>
+  <footer><p>Educational research tool only. Not investment advice. Provider data may be delayed, incomplete, or subject to usage limits. Confirm important figures against official company filings and exchange disclosures.</p></footer>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
+<script src="/account.js" defer></script>
+<script src="/app.js" defer></script>
+<script src="/navigation.js" defer></script>
+</body>
+</html>
+
