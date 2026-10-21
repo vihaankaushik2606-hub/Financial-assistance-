@@ -6,8 +6,10 @@
 <meta name="description" content="Evidence-first company financial research dashboard">
 <title>Research dashboard — AI Finance Lab</title>
 <link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/navigation.css">
 </head>
 <body>
+<nav class="quick-nav" aria-label="Account navigation"><a href="/">Home</a><a href="/dashboard.html">Research</a><a href="/account.html">Account</a><a href="/account.html#settings">Settings</a></nav>
 <header class="topbar">
   <a class="brand" href="/"><span class="logo">F</span><span><b>AI Finance Lab</b><small>Company Truth Report</small></span></a>
   <div class="status"><span class="dot"></span><span id="apiStatus">Checking backend…</span></div>
@@ -128,6 +130,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
 <script src="/account.js" defer></script>
 <script src="/app.js" defer></script>
+<script src="/navigation.js" defer></script>
 </body>
 </html>
 

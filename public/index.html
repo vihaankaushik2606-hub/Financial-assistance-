@@ -7,19 +7,21 @@
 <meta name="theme-color" content="#101a1c">
 <title>AI Finance Lab — Research with perspective</title>
 <link rel="stylesheet" href="/landing.css">
+<link rel="stylesheet" href="/navigation.css">
 </head>
 <body>
+<nav class="quick-nav" aria-label="Account navigation"><a href="/">Home</a><a href="/dashboard.html">Research</a><a href="/account.html">Account</a><a href="/account.html#settings">Settings</a></nav>
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header wrap">
   <a class="brand" href="/" aria-label="AI Finance Lab home"><span class="brand-mark">F<span>↗</span></span><span>AI Finance <strong>Lab</strong></span></a>
-  <nav aria-label="Main navigation"><a href="#approach">The approach</a><a href="/dashboard.html">Research dashboard</a><a class="nav-account" href="#accountPanel" id="navAccount">Sign in <span aria-hidden="true">↗</span></a></nav>
+  <nav aria-label="Main navigation"><a href="#approach">The approach</a><a href="/dashboard.html">Research dashboard</a><a class="nav-account" href="/account.html" id="navAccount">Sign in <span aria-hidden="true">↗</span></a></nav>
 </header>
 <main id="main">
 <section class="hero wrap">
   <div class="hero-copy"><p class="eyebrow"><span class="live-dot"></span> YOUR NEXT QUESTION STARTS HERE</p>
     <h1>Behind every number,<br>there’s a <em>better question.</em></h1>
     <p class="hero-description">Understand the business behind the ticker. Explore financial data, examine the warning signs, and turn assumptions into something you can test.</p>
-    <div class="hero-actions"><a class="button mint" href="/dashboard.html">Open the research lab <span aria-hidden="true">↗</span></a><a class="text-link" href="#accountPanel">Create your account <span aria-hidden="true">→</span></a></div>
+    <div class="hero-actions"><a class="button mint" href="/dashboard.html">Open the research lab <span aria-hidden="true">↗</span></a><a class="text-link" href="/account.html">Create your account <span aria-hidden="true">→</span></a></div>
     <p class="hero-note">Explore the calculators without an account. Sign in for AI tools and saved history.</p>
   </div>
   <div class="report-preview" aria-label="Illustrative preview of the research tools">
@@ -57,8 +59,9 @@
 </div></section>
 <section class="closing wrap"><p class="eyebrow">CURIOUS, NOT CERTAIN.</p><h2>Better questions.<br>More informed perspectives.</h2><p>AI Finance Lab is an educational research tool. Data may be delayed or incomplete, and AI can make mistakes. Verify important claims against official filings. Nothing here is a buy or sell recommendation.</p><a class="text-link" href="/dashboard.html">Start exploring <span aria-hidden="true">↗</span></a></section>
 </main>
-<footer class="site-footer wrap"><a class="brand" href="/">AI Finance <strong>Lab</strong></a><span>Research with perspective.</span><a href="#accountPanel">Your account ↑</a></footer>
+<footer class="site-footer wrap"><a class="brand" href="/">AI Finance <strong>Lab</strong></a><span>Research with perspective.</span><a href="/account.html">Your account ↑</a></footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
 <script src="/account.js" defer></script>
+<script src="/navigation.js" defer></script>
 </body>
 </html>
