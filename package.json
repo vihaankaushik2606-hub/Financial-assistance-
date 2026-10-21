@@ -5,7 +5,8 @@
   "description": "Research-first company financial analysis dashboard",
   "main": "server/index.js",
   "scripts": {
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=18"
@@ -15,3 +16,4 @@
     "express": "^4.21.2"
   }
 }
+

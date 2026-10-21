@@ -143,19 +143,26 @@ $("loadBtn").addEventListener("click", async () => {
   $("message").textContent = "Requesting quote and daily prices…";
   $("marketCards").innerHTML = ""; $("historySection").hidden = true;
   try {
-    const [q,d] = await Promise.all([api(`/api/quote?symbol=${encodeURIComponent(symbol())}`),api(`/api/daily?symbol=${encodeURIComponent(symbol())}`)]);
-    const x = q.quote || {}, rows = d.rows || [];
-    $("marketCards").innerHTML = [
-      metric("Ticker",q.symbol,"Source: Financial Modeling Prep"),
-      metric("Latest available price",x["05. price"] || "Unavailable", "Provider quote; not guaranteed real-time"),
-      metric("Change",x["09. change"] || "—",x["10. change percent"] || ""),
-      metric("Latest trading day",x["07. latest trading day"] || rows[0]?.date || "—"),
-      metric("Volume",x["06. volume"] || rows[0]?.volume || "—"),
-      metric("Fetched at",new Date(q.fetchedAt).toLocaleString(),"Provider data can be delayed")
-    ].join("");
+    const ticker = encodeURIComponent(symbol());
+    const [quoteResult, dailyResult] = await Promise.allSettled([api(`/api/quote?symbol=${ticker}`), api(`/api/daily?symbol=${ticker}`)]);
+    const rows = dailyResult.status === "fulfilled" ? dailyResult.value.rows || [] : [];
+    if (quoteResult.status === "fulfilled") {
+      const q = quoteResult.value, x = q.quote || {};
+      $("marketCards").innerHTML = [
+        metric("Ticker", q.symbol, "Source: Financial Modeling Prep"),
+        metric("Latest available price", x["05. price"] ?? "Unavailable", "Provider quote; not guaranteed real-time"),
+        metric("Change", x["09. change"] ?? "—", x["10. change percent"] ?? ""),
+        metric("Latest trading day", x["07. latest trading day"] ?? "—"),
+        metric("Volume", x["06. volume"] ?? "—"),
+        metric("Fetched at", new Date(q.fetchedAt).toLocaleString(), "Provider data can be delayed")
+      ].join("");
+    }
     $("historyRows").innerHTML = rows.slice(0,20).map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.open)}</td><td>${esc(r.high)}</td><td>${esc(r.low)}</td><td>${esc(r.close)}</td><td>${esc(r.volume)}</td></tr>`).join("");
-    $("historySection").hidden = false;
-    $("message").textContent = "Market data fetched. Verify the symbol, currency, trading date, and provider terms before relying on it.";
+    $("historySection").hidden = rows.length === 0;
+    const errors = [];
+    if (quoteResult.status === "rejected") errors.push(`Quote unavailable: ${quoteResult.reason.message}`);
+    if (dailyResult.status === "rejected") errors.push(`Daily prices unavailable: ${dailyResult.reason.message}`);
+    $("message").textContent = errors.length ? errors.join(" ") : "Market data fetched. Verify the symbol, currency, trading date, and provider terms before relying on it.";
   } catch(e) { $("message").textContent = `Could not fetch market data: ${e.message}`; }
   finally { $("loadBtn").disabled = false; }
 });
@@ -179,10 +186,11 @@ $("fundamentalsBtn").addEventListener("click", async () => {
 
 
 const autoCompanyInput = $("autoCompany");
-let autoAnalysisTimer = null;
+let autoAnalysisInFlight = false;
 async function runAutomaticCompanyAnalysis() {
   const company = autoCompanyInput.value.trim();
-  if (!company) return;
+  if (!company || autoAnalysisInFlight) return;
+  autoAnalysisInFlight = true;
   const button = $("autoAnalyzeBtn");
   button.disabled = true;
   $("autoAnalysisOutput").hidden = true;
@@ -202,6 +210,7 @@ async function runAutomaticCompanyAnalysis() {
   } catch (error) {
     $("autoAnalysisStatus").textContent = error.message || "Automatic analysis failed.";
   } finally {
+    autoAnalysisInFlight = false;
     button.disabled = false;
   }
 }
@@ -209,13 +218,8 @@ $("autoAnalyzeBtn").addEventListener("click", runAutomaticCompanyAnalysis);
 autoCompanyInput.addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
-    if (autoAnalysisTimer) clearTimeout(autoAnalysisTimer);
     runAutomaticCompanyAnalysis();
   }
-});
-autoCompanyInput.addEventListener("change", () => {
-  if (autoAnalysisTimer) clearTimeout(autoAnalysisTimer);
-  autoAnalysisTimer = setTimeout(runAutomaticCompanyAnalysis, 300);
 });
 
 
@@ -230,7 +234,7 @@ function calcRatios() {
   if (profit !== null && ocf !== null) out.push(metric("Operating cash flow",moneyish(ocf),"Compare with profit across matching periods"));
   if (debt !== null && cash !== null) out.push(metric("Net debt",moneyish(debt-cash),"Debt minus cash; same units required"));
   if (revenue > 0 && priorRevenue !== null && priorRevenue > 0) out.push(metric("Revenue growth",`${fmt((revenue/priorRevenue-1)*100)}%`,"Current vs prior period"));
-  if (profit !== null && priorProfit !== null && priorProfit !== 0) out.push(metric("Profit change",`${fmt((profit/priorProfit-1)*100)}%`,"Current vs prior period"));
+  if (profit !== null && priorProfit !== null && priorProfit !== 0) out.push(metric("Profit change",`${fmt((profit-priorProfit)/Math.abs(priorProfit)*100)}%`,"Change ÷ absolute prior profit; positive means improvement"));
   $("ratioCards").innerHTML = out.join("");
   const findings=[];
   if (profit !== null && ocf !== null && profit > 0 && ocf < 0) findings.push(["alert","Positive profit but negative operating cash flow","Investigate working capital, receivables, one-off items, and cash-flow statement notes. This pattern is a prompt, not proof of misconduct."]);
@@ -295,6 +299,8 @@ $("clearBtn").addEventListener("click",()=>{
   ["revenue","expenses","profit","ocf","debt","cash","priorRevenue","priorProfit","period"].forEach(id=>$(id).value="");
   $("ratioCards").innerHTML=""; $("findings").innerHTML='<p class="muted">Enter figures and run the scanner to see calculated ratios and research prompts.</p>';
   $("manualSource").textContent="Source status: figures have not been entered.";
+  delete $("aiQuestion").dataset.context;
+  $("scenarioCards").innerHTML = "";
 });
 $("scenarioBtn").addEventListener("click",()=>{
   const revenue=num("revenue");
@@ -306,3 +312,4 @@ $("scenarioBtn").addEventListener("click",()=>{
   }).join("");
 });
 checkHealth();
+

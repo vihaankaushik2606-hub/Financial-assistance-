@@ -98,3 +98,12 @@ This project uses Supabase Auth for email/password and Google sign-in, plus a Po
 ## Financial Modeling Prep market data
 
 Market-data calls use FMP's Stable API from the server: `/stable/quote`, `/stable/historical-price-eod/full`, `/stable/income-statement`, `/stable/balance-sheet-statement`, and `/stable/cash-flow-statement`. Set `FMP_API_KEY` in Render's environment settings; never put the key in frontend code or GitHub. FMP endpoint access, historical coverage, and annual/quarterly statement availability depend on your FMP plan. The API endpoints are normalized to the existing dashboard response format so the current frontend can continue working.
+
+
+## Reliability checks and provider budget
+
+Run `npm test` for the regression checks.
+
+Market endpoints share a per-process limit of 120 incoming requests per minute. New upstream FMP requests additionally share a budget of 200 per 24-hour window; set `FMP_DAILY_REQUEST_LIMIT` to a positive integer appropriate for your provider plan. Cache hits and coalesced in-flight requests do not consume this upstream budget. A fundamentals fetch can use six upstream calls. These counters reset on restart and are not shared across instances; use a persistent shared store before scaling. The window begins with the process, not at the provider's daily reset.
+
+Company analysis includes selected financial fields from the two latest annual and two latest quarterly reports for each statement, with periods, currencies, and missing values preserved. Automatic analysis runs only on Enter or the Analyze company button and ignores duplicate submissions while a request is running.
