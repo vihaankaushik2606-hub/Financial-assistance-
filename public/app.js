@@ -52,8 +52,8 @@ async function checkHealth() {
 
   try {
     const h = await api("/api/health");
-    const fmpText = h.providerConfigured ? "Live FMP" : "Demo mode";
-    const aiText = h.aiConfigured ? "AI ready" : "AI setup pending";
+    const fmpText = h.providerConfigured ? "FMP configured" : "Demo mode";
+    const aiText = h.aiConfigured ? "AI configured" : "AI setup pending";
     statusEl.textContent = `Online · ${fmpText} · ${aiText}`;
     if (dotEl) {
       dotEl.style.background = h.providerConfigured && h.aiConfigured ? "var(--green)" : "var(--amber)";
@@ -114,8 +114,8 @@ $("loadBtn")?.addEventListener("click", async () => {
     if (marketCards) {
       marketCards.innerHTML = [
         metric("Company", x.name || "Unavailable", x.symbol || q.symbol),
-        metric("Current Price", x.price !== undefined ? `$${quoteNumber(x.price)}` : "—", x.currency || "USD"),
-        metric("Today's Change", `${quoteNumber(x.change)} (${changePct})`, x.change >= 0 ? "Gain" : "Loss"),
+        metric("Last Available Price", x.price !== undefined ? `$${quoteNumber(x.price)}` : "—", x.currency || "USD"),
+        metric("Reported Change", `${quoteNumber(x.change)} (${changePct})`, x.change >= 0 ? "Gain" : "Loss"),
         metric("Market Cap", mktCap, "Valuation"),
         metric("Volume", quoteNumber(x.volume, 0), "Shares Traded"),
         metric("Day Range", `$${quoteNumber(x.dayLow)} – $${quoteNumber(x.dayHigh)}`, "Low – High"),
@@ -124,14 +124,14 @@ $("loadBtn")?.addEventListener("click", async () => {
         metric("200-Day Moving Avg", quoteNumber(x.priceAvg200), "Long-term trend"),
         metric("Previous Close", quoteNumber(x.previousClose), `Open: $${quoteNumber(x.open)}`),
         metric("Exchange", x.exchange || "US", `Updated: ${updated}`),
-        metric("Data Source", q.source || "Market Provider", q.isDemo ? "Illustrative demo" : "Live feed")
+        metric("Data Source", q.source || "Market Provider", q.isDemo ? "Illustrative demo" : q.marketData?.stale ? "Older saved quote" : "Saved / refreshed quote")
       ].join("");
     }
 
     if (messageEl) {
       messageEl.textContent = q.isDemo
         ? `Showing demo data for ${x.symbol || q.symbol}. (Add your free FMP_API_KEY in .env to connect live market data.)`
-        : `Live market quote loaded for ${x.symbol || q.symbol}. Data supplied by Financial Modeling Prep.`;
+        : `Market quote for ${x.symbol || q.symbol}. ${q.marketData?.stale ? "Older saved data; refresh unavailable. " : ""}Fetched ${q.fetchedAt ? new Date(q.fetchedAt).toLocaleString() : "at an unavailable time"}. Source: Financial Modeling Prep.`;
     }
   } catch (e) {
     if (messageEl) messageEl.textContent = `Could not load quote: ${e.message}`;
@@ -277,14 +277,13 @@ $("fundamentalsBtn")?.addEventListener("click", async () => {
 
 function resetStatementAnalysis(message) {
   if ($("statementAnalysisStatus")) $("statementAnalysisStatus").textContent = message;
-  ["statementAnalysisMetrics", "statementAnalysisFindings", "statementAnalysisCharts"].forEach(id => { if ($(id)) $(id).innerHTML = ""; });
+  ["statementAnalysisMetrics", "statementAnalysisFindings"].forEach(id => { if ($(id)) $(id).innerHTML = ""; });
   if ($("statementAnalysisGaps")) { $("statementAnalysisGaps").textContent = ""; $("statementAnalysisGaps").hidden = true; }
 }
 
 function renderFinancialAnalysis(data) {
   if (!window.StatementAnalysis || !$("statementAnalysisStatus")) return;
   const report = window.StatementAnalysis.analyze(data);
-  window.AnalysisCharts?.render(data, $("statementAnalysisCharts"));
   const mode = report.isDemo ? "Illustrative sample data — not reported company figures" : "Financial Modeling Prep · annual statements";
   $("statementAnalysisStatus").textContent = report.date
     ? `${report.symbol} · year ended ${report.date} · ${report.currency} · ${mode}. Verify against the annual report.`

@@ -5,7 +5,7 @@ let current=null,generation=0;
 function fmt(m,r){return !m?"Unavailable":m.unit==="money"?(r.currency||"Unknown currency")+" "+new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(m.value):m.unit==="percent"?m.value.toFixed(2)+"%":m.value.toFixed(2)+"×";}
 async function news(){if(current)await window.CompanyNews.load(current.symbol,$("labNewsList"),$("labNewsStatus"));}
 window.addEventListener("lab-company-reset",()=>{current=null;generation++;window.CompanyNews.cancel($("labNewsList"));["peerOutput","coachOutput","labNewsList","labNewsStatus","peerStatus"].forEach(id=>$(id).textContent="");$("coachAsk").disabled=false;$("peerLoad").disabled=false;});
-window.addEventListener("lab-company-loaded",e=>{current=e.detail.data;news();});
+window.addEventListener("lab-company-loaded",e=>{current=e.detail.data;$("labNewsStatus").textContent="Click Refresh company news to load headlines. An uncached request uses one market-data call.";});
 $("labNewsRefresh").addEventListener("click",news);
 $("peerLoad").addEventListener("click",async()=>{
  if(!current)return;const symbol=$("peerSymbol").value.trim().toUpperCase();

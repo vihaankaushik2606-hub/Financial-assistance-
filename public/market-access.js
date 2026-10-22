@@ -1,0 +1,19 @@
+(() => {
+'use strict';
+const nativeFetch=window.fetch.bind(window);
+let timer,usageGeneration=0;
+async function token(){try{if(window.ResearchStore)return await window.ResearchStore.token();if(window.FinanceAccount){await window.FinanceAccount.ready;return await window.FinanceAccount.token();}}catch{}return null;}
+function status(message){const el=document.getElementById('marketUsageStatus');if(el)el.textContent=message;}
+async function refresh(){const g=++usageGeneration;try{const t=await token(),r=await nativeFetch('/api/market-usage',{headers:t&&t!=='guest-token'?{Authorization:'Bearer '+t}:{},cache:'no-store'}),d=await r.json();if(g!==usageGeneration)return;if(!r.ok)throw Error(d.error||'Usage could not be checked.');status(d.signedIn?d.remaining+' of 4 market-data calls available in the last 24 hours.'+(d.nextResetAt?' Next call returns after '+new Date(d.nextResetAt).toLocaleString()+'.':''):'Sign in for four market-data calls per rolling 24 hours. Saved data remains available.');}catch(e){if(g===usageGeneration)status(e.message);}}
+window.fetch=async(input,options={})=>{
+ const url=new URL(typeof input==='string'?input:input.url,location.href),market=url.origin===location.origin&&/^\/api\/(quote|daily|fundamentals|news|company-analysis)$/.test(url.pathname);
+ if(!market)return nativeFetch(input,options);
+ const t=await token(),headers=new Headers(options.headers||((typeof input!=='string'&&input.headers)||{}));if(t&&t!=='guest-token')headers.set('Authorization','Bearer '+t);
+ const response=await nativeFetch(input,{...options,headers,cache:'no-store'});
+ response.clone().json().then(d=>{const el=document.getElementById('marketDataFreshness');if(!el)return;if(d.marketData?.reads?.length){el.textContent=d.marketData.reads.map(r=>r.endpoint+(r.period?' ('+r.period+')':'')+' · '+(r.cache==='refreshed'?'updated now':r.cache==='fresh'?'saved data':r.cache==='stale'?'older saved data; refresh unavailable':'unavailable')+(r.updatedAt?' · fetched '+new Date(r.updatedAt).toLocaleString():'')).join(' | ');}else if(d.error)el.textContent=d.error;}).catch(()=>{});
+ clearTimeout(timer);timer=setTimeout(refresh,150);return response;
+};
+function mount(){const main=document.querySelector('main');if(!main)return;const box=document.createElement('aside');box.className='market-allowance';box.setAttribute('aria-label','Market data allowance');const p=document.createElement('p');p.id='marketUsageStatus';p.setAttribute('role','status');p.textContent='Checking market-data allowance…';const details=document.createElement('details'),summary=document.createElement('summary'),help=document.createElement('p'),fresh=document.createElement('p'),link=document.createElement('a');summary.textContent='How the test allowance works';help.textContent='Each new provider request uses one call, including failed attempts. An annual or quarterly analysis can use three calls; a price uses one. Cached figures, charts, ratios and notes use no calls. The shared site limit is 225 calls in any 24 hours. OpenAI requests and TradingView charts are separate.';fresh.id='marketDataFreshness';fresh.setAttribute('role','status');link.href='/account.html';link.textContent='Sign in / account ↗';details.append(summary,help,fresh,link);box.append(p,details);main.prepend(box);refresh();}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else mount();
+window.addEventListener('research-account-changed',refresh);window.addEventListener('finance-account-changed',refresh);
+})();

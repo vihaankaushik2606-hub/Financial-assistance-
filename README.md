@@ -56,7 +56,7 @@ GitHub Pages cannot run the Node backend. You may host the static frontend on Gi
 - `GET /api/health` — server status
 - `GET /api/quote?symbol=IBM` — FMP quote
 - `GET /api/daily?symbol=IBM` — historical daily prices
-- `GET /api/fundamentals?symbol=IBM` — income statement, balance sheet, and cash flow; annual and quarterly data depend on FMP plan/coverage
+- `GET /api/fundamentals?symbol=IBM` — income statement, balance sheet, and cash flow; defaults to annual only; add `&period=quarter` for quarterly only
 
 ## Suggested next steps
 
@@ -64,7 +64,7 @@ GitHub Pages cannot run the Node backend. You may host the static frontend on Gi
 2. Add source links, reporting period, currency, and last-updated labels to each financial data field.
 3. Validate statement data and units before calculations.
 4. Store forecast assumptions and measure forecasts against actual outcomes.
-5. Add automated tests and rate limiting before inviting users.
+5. Run `npm test` before inviting users.
 
 ## Accounts, Google sign-in, and private AI history
 
@@ -86,7 +86,7 @@ This project uses Supabase Auth for email/password and Google sign-in, plus a Po
 
 ### Security and behavior
 
-- AI requests require a valid Supabase access token verified by the server. A simple per-account limit of 30 AI requests per rolling hour is included as a starter safeguard; production deployments should use a shared rate-limit store and add monitoring.
+- Signed-in AI requests verify the Supabase access token; guest AI access remains enabled. The separate AI throttle is 60 requests per rolling hour per process/account (all guests share a bucket). Market-data allowances do not limit OpenAI billing.
 - AI answers are saved to Supabase under the signed-in user's account. Database RLS isolates each user's history; the app does not give one user access to another user's records.
 - Market quote/history and the manual calculator remain available without an account. AI assistant and automatic company analysis require sign-in.
 - The OpenAI API is billed separately from a ChatGPT subscription. Set billing/usage limits in your OpenAI platform account before inviting other people.
@@ -104,7 +104,19 @@ Market-data calls use FMP's Stable API from the server: `/stable/quote`, `/stabl
 
 Run `npm test` for the regression checks.
 
-Market endpoints share a per-process limit of 120 incoming requests per minute. New upstream FMP requests additionally share a budget of 200 per 24-hour window; set `FMP_DAILY_REQUEST_LIMIT` to a positive integer appropriate for your provider plan. Cache hits and coalesced in-flight requests do not consume this upstream budget. A fundamentals fetch can use six upstream calls. These counters reset on restart and are not shared across instances; use a persistent shared store before scaling. The window begins with the process, not at the provider's daily reset.
+Market endpoints retain a 120-request/minute process throttle. Actual FMP attempts are atomically limited in shared Postgres to four per signed-in account and 225 site-wide in any rolling 24 hours. Cached reads do not consume either limit. Failed/reserved attempts count conservatively; counters survive restarts. Unauthenticated requests can read saved data but cannot start provider calls. A statement analysis loads one requested period (three calls), rather than annual and quarterly together (six). FMP_DAILY_REQUEST_LIMIT is superseded by the database-enforced cap.
 
-Company analysis includes selected financial fields from the two latest annual and two latest quarterly reports for each statement, with periods, currencies, and missing values preserved. Automatic analysis runs only on Enter or the Analyze company button and ignores duplicate submissions while a request is running.
+Company analysis includes selected financial fields from the two latest annual reports for each statement, with periods, currencies, and missing values preserved. Automatic analysis runs only on Enter or the Analyze company button and ignores duplicate submissions while a request is running.
 Market-data calls use FMP's Stable API from the server: `/stable/quote`, `/stable/historical-price-eod/full`, `/stable/income-statement`, `/stable/balance-sheet-statement`, and `/stable/cash-flow-statement`. Set `FMP_API_KEY` in your backend environment settings (.env); never put the key in frontend code or GitHub. FMP endpoint access, historical coverage, and annual/quarterly statement availability depend on your FMP plan. The API endpoints are normalized to the existing dashboard response format so the current frontend can continue working.
+
+
+## Tester market-data policy
+
+- Four actual upstream attempts per signed-in account in any rolling 24 hours; 30 accounts using all four make at most 120 attempts from those accounts. Accounts are not pre-created and signup is not restricted to an invitation list.
+- Shared site ceiling: 225 attempts in any rolling 24 hours. Calls from another application using the same FMP key are outside this ledger.
+- Cache freshness: statements and historical prices 24 hours, quotes 60 minutes, news four hours. Stale data remains available with timestamps when a limit or provider failure prevents refresh. No background provider polling.
+- Annual and quarterly statements are loaded separately. News loads on explicit request. A three-statement analysis can use three calls; a quote can use one. AI and TradingView are separate services.
+- `GET /api/market-usage` shows the authenticated user's remaining allowance and next call expiry. The client sends a Supabase bearer token; client-supplied user IDs are never used.
+- The private `market_private` schema holds cache leases and attempt records. A database advisory lock makes reservations atomic across deployments. Tables deny direct anonymous/authenticated access. The public RPC is an invoker wrapper; its private definer requires a server-only 256-bit cache secret.
+- Configure `MARKET_CACHE_SECRET` in the backend environment, and privately provision `market_private.config.secret_hash` with its SHA-256 hexadecimal digest. Do not commit the secret or expose it to browsers. The migration intentionally contains no credential. Production has been provisioned; other environments fail closed until separately configured.
+- Missing/unavailable quota storage prevents new upstream requests. Reservations are not refunded after network errors because the provider may have counted them.

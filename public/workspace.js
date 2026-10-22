@@ -26,7 +26,7 @@ async function load(){const symbol=$('toolSymbol').value.trim().toUpperCase();if
  if(page==='evidence'){['evidenceClaims','aiStatus'].forEach(id=>$(id).textContent='');$('filingUrl').value='';$('verificationNotes').value='';}
  if(page==='quarterly')$('quarterNotes').value='';
  if(page==='news-impact'){['assumptionBefore','eventFact','assumptionAfter'].forEach(id=>$(id).value='');$('impactHeadlines').textContent='';$('articleChoice').replaceChildren();$('articleLink').textContent='';}
- try{current=page==='news-impact'?{symbol}:await get('/api/fundamentals?symbol='+encodeURIComponent(symbol));if(g!==revision)return;
+ try{current=page==='news-impact'?{symbol}:await get('/api/fundamentals?symbol='+encodeURIComponent(symbol)+(page==='quarterly'?'&period=quarter':'&period=annual'));if(g!==revision)return;
  if(page==='quarterly')quarterly();if(page==='evidence')renderLedger();if(page==='news-impact')await news(g);
  $('toolReport').hidden=false;$('toolStatus').textContent='Research loaded for '+symbol+'.';
  }catch(e){$('toolStatus').textContent=e.message;}finally{$('toolLoad').disabled=false;$('toolSymbol').readOnly=false;}}

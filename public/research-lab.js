@@ -25,7 +25,7 @@ async function load(){
  current=f.value;window.dispatchEvent(new CustomEvent("lab-company-loaded",{detail:{data:current}}));report=window.StatementAnalysis.analyze(current);draftKey="finance-research-notebook-v1:"+symbol+":"+(report.date||"undated")+":"+(report.currency||"unknown");readDraft();
  const name=q.status==="fulfilled"?(q.value.quote?.raw?.name||symbol):symbol;
  $("labCompany").textContent=name+" · "+symbol+". Add a verified business description below.";
- $("labSource").textContent=symbol+" · "+(report.date?"year ended "+report.date:"no usable annual reporting date")+" · "+(report.currency||"currency unavailable")+" · "+(report.isDemo?"ILLUSTRATIVE DEMO DATA":"Financial Modeling Prep annual statements")+".";
+ $("labSource").textContent=symbol+" · "+(report.date?"year ended "+report.date:"no usable annual reporting date")+" · "+(report.currency||"currency unavailable")+" · "+(report.isDemo?"ILLUSTRATIVE DEMO DATA":"Financial Modeling Prep annual statements")+"."+(current.fetchedAt?" Data fetched "+new Date(current.fetchedAt).toLocaleString()+".":"")+(current.marketData?.stale?" Older saved data; refresh unavailable.":"");
  $("labMetrics").innerHTML=report.metrics.map(m=>'<div class="metric"><div class="label">'+esc(m.label)+'</div><div class="value">'+esc(format(m))+'</div></div>').join("");
  window.AnalysisCharts.render(current,$("labCharts"));
  $("labExplain").innerHTML=report.findings.map(f=>'<article class="finding"><h3>'+esc(f.title)+'</h3><p>'+esc(f.text)+'</p></article>').join("");
