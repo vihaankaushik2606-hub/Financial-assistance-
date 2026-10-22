@@ -98,6 +98,7 @@ $("loadBtn")?.addEventListener("click", async () => {
   if (loadBtn?.disabled) return;
   if (loadBtn) loadBtn.disabled = true;
   resetLinkedNumbers();
+  resetStatementAnalysis(`Loading annual statements for ${requestedSymbol}…`);
   if (messageEl) messageEl.textContent = `Fetching market data for ${requestedSymbol}…`;
   if (marketCards) marketCards.innerHTML = "";
 
@@ -236,12 +237,15 @@ $("fundamentalsBtn")?.addEventListener("click", async () => {
   }
 
   if (fundamentalsBtn) fundamentalsBtn.disabled = true;
+  resetStatementAnalysis(`Loading annual statements for ${requestedSymbol}…`);
   if (messageEl) messageEl.textContent = "Retrieving financial statements…";
   if (outputEl) outputEl.innerHTML = "";
   if (sectionEl) sectionEl.hidden = false;
 
   try {
     const d = await api(`/api/fundamentals?symbol=${encodeURIComponent(requestedSymbol)}`);
+    if (getSymbol() !== requestedSymbol) return;
+    renderFinancialAnalysis(d);
     const labels = {
       incomeStatement: "Income Statement",
       balanceSheet: "Balance Sheet",
@@ -261,12 +265,36 @@ $("fundamentalsBtn")?.addEventListener("click", async () => {
         : `Financial statements loaded for ${d.symbol}. Verify figures against official annual filings.`;
     }
   } catch (e) {
+    if (getSymbol() !== requestedSymbol) return;
+    resetStatementAnalysis(`Financial statement analysis is unavailable: ${e.message}`);
     if (outputEl) outputEl.innerHTML = `<p class="notice">${esc(e.message)}</p>`;
   } finally {
     if (fundamentalsBtn) fundamentalsBtn.disabled = false;
   }
 });
 
+
+function resetStatementAnalysis(message) {
+  if ($("statementAnalysisStatus")) $("statementAnalysisStatus").textContent = message;
+  ["statementAnalysisMetrics", "statementAnalysisFindings"].forEach(id => { if ($(id)) $(id).innerHTML = ""; });
+  if ($("statementAnalysisGaps")) { $("statementAnalysisGaps").textContent = ""; $("statementAnalysisGaps").hidden = true; }
+}
+
+function renderFinancialAnalysis(data) {
+  if (!window.StatementAnalysis || !$("statementAnalysisStatus")) return;
+  const report = window.StatementAnalysis.analyze(data);
+  const mode = report.isDemo ? "Illustrative sample data — not reported company figures" : "Financial Modeling Prep · annual statements";
+  $("statementAnalysisStatus").textContent = report.date
+    ? `${report.symbol} · year ended ${report.date} · ${report.currency} · ${mode}. Verify against the annual report.`
+    : `${report.symbol} · ${mode}. Financial analysis is unavailable.`;
+  const valueText = item => item.unit === "money"
+    ? `${report.currency} ${new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 2 }).format(item.value)}`
+    : item.unit === "percent" ? `${item.value.toFixed(1)}%` : `${item.value.toFixed(2)}×`;
+  $("statementAnalysisMetrics").innerHTML = report.metrics.map(item => metric(item.label, valueText(item), item.formula)).join("");
+  $("statementAnalysisFindings").innerHTML = report.findings.map(item => `<article class="finding"><h3>${esc(item.title)}</h3><p>${esc(item.text)}</p></article>`).join("");
+  $("statementAnalysisGaps").hidden = !report.gaps.length;
+  $("statementAnalysisGaps").textContent = report.gaps.join(" ");
+}
 
 const linkedFields = ["revenue","expenses","profit","ocf","debt","cash","priorRevenue","priorProfit","period"];
 function resetLinkedNumbers() {
@@ -281,6 +309,7 @@ async function loadLinkedNumbers(ticker) {
   try {
     const d = await api(`/api/fundamentals?symbol=${encodeURIComponent(ticker)}`);
     if (getSymbol() !== ticker) return;
+    renderFinancialAnalysis(d);
     if (d.isDemo) throw new Error("Only demo statements are available. Automatic ratios need reported company figures.");
     const statements = d.statements || {};
     const annual = key => (statements[key]?.available ? statements[key].annualReports || [] : [])
@@ -313,6 +342,7 @@ async function loadLinkedNumbers(ticker) {
     if ($("fundamentalsOutput")) $("fundamentalsOutput").innerHTML = Object.entries(statements).map(([key,item])=>renderStatementTable(labels[key] || key,item)).join("");
   } catch (error) {
     if (getSymbol() !== ticker) return;
+    if (!$("statementAnalysisMetrics")?.innerHTML) resetStatementAnalysis(`Financial statement analysis is unavailable: ${error.message}`);
     $("manualSource").textContent = `Automatic figures for ${ticker} are unavailable: ${error.message} You can still enter figures from its annual report below.`;
     $("findings").innerHTML = '<p class="muted">No automatic ratios available. Missing data has not been treated as zero.</p>';
   }
@@ -548,4 +578,3 @@ checkHealth();
 setupQuickTickers();
 
 })();
-

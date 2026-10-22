@@ -13,7 +13,7 @@ function frontend(fetchRequest = async () => response({})) {
     if (!nodes.has(id)) nodes.set(id, { value: '', dataset: {}, style: {}, innerHTML: '', textContent: '', hidden: false, listeners: {}, querySelectorAll() { return []; }, addEventListener(event, fn) { this.listeners[event] = fn; } });
     return nodes.get(id);
   }
-  const context = vm.createContext({ document: { getElementById: node, querySelector: node }, window: {},
+  const context = vm.createContext({ document: { getElementById: node, querySelector: node }, window: { StatementAnalysis: require('../public/statement-analysis') },
     fetch: url => url === '/api/config' ? Promise.resolve(response({ authConfigured: false })) : url === '/api/health' ? Promise.resolve(response({})) : fetchRequest(url),
     setTimeout, clearTimeout, console });
   vm.runInContext(source('public/app.js').replace(/\n\}\)\(\);\s*$/, '\n;globalThis.testApp = { calcRatios };\n})();'), context);
@@ -132,3 +132,24 @@ test('upstream budget is enforced while cached and concurrent requests share one
   assert.equal(calls, 1);
 });
 
+test('stock lookup renders statement analysis and a subsequent failure clears stale results', async () => {
+  const { node } = frontend(async url => url.startsWith('/api/quote') ? response({ quote: { raw: { price: 100 } } }) : url.includes('IBM') ? response({ symbol: 'IBM', statements: { incomeStatement: { available: true, annualReports: [{ date: '2025-12-31', reportedCurrency: 'USD', revenue: 100, netIncome: 20 }] } } }) : response({ error: 'Unavailable' }, false));
+  node('symbol').value = 'IBM';
+  await node('loadBtn').listeners.click();
+  assert.match(node('statementAnalysisMetrics').innerHTML, /20.0%/);
+  assert.match(node('statementAnalysisFindings').innerHTML, /Profitability/);
+  assert.match(node('statementAnalysisStatus').textContent, /IBM.*2025-12-31.*USD/);
+  node('symbol').value = 'MSFT';
+  await node('loadBtn').listeners.click();
+  assert.equal(node('statementAnalysisMetrics').innerHTML, '');
+  assert.equal(node('statementAnalysisFindings').innerHTML, '');
+  assert.match(node('statementAnalysisStatus').textContent, /unavailable/i);
+});
+
+test('View financial statements also generates analysis and clearly labels demos', async () => {
+  const { node } = frontend(async () => response({ symbol: 'IBM', isDemo: true, statements: { incomeStatement: { available: true, annualReports: [{ date: '2025-12-31', reportedCurrency: 'USD', revenue: 100, netIncome: 20 }] } } }));
+  node('symbol').value = 'IBM';
+  await node('fundamentalsBtn').listeners.click();
+  assert.match(node('statementAnalysisStatus').textContent, /Illustrative sample data/);
+  assert.match(node('statementAnalysisMetrics').innerHTML, /20.0%/);
+});
