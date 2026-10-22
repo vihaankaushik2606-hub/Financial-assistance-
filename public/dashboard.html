@@ -8,11 +8,34 @@
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/navigation.css">
 <link rel="stylesheet" href="/purple.css?v=floating-text-4">
+<link rel="stylesheet" href="/subpage.css?v=floating-subpages-1">
 </head>
-<body>
+<body class="floating-subpage">
+  <div class="market-flow-backdrop" aria-hidden="true">
+    <svg viewBox="0 0 1200 520" preserveAspectRatio="none" focusable="false">
+      <defs>
+        <linearGradient id="flowMint" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#c5edbb" stop-opacity=".05"/><stop offset="50%" stop-color="#c5edbb" stop-opacity=".75"/><stop offset="100%" stop-color="#c5edbb" stop-opacity=".08"/></linearGradient>
+        <linearGradient id="flowGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#d6b88b" stop-opacity=".06"/><stop offset="50%" stop-color="#d6b88b" stop-opacity=".7"/><stop offset="100%" stop-color="#d6b88b" stop-opacity=".08"/></linearGradient>
+      </defs>
+      <g class="flow-grid" stroke="#d6eee1" stroke-opacity=".09">
+        <path d="M0 90H1200M0 170H1200M0 350H1200M0 430H1200"/>
+        <path d="M300 0V520M600 0V520M900 0V520"/>
+      </g>
+      <path class="flow-trace flow-trace-left" d="M155 -30 C95 25 225 65 150 120 S95 205 160 260 S220 345 145 400 S105 470 160 550" fill="none" stroke="url(#flowMint)" stroke-width="3"/>
+      <path class="flow-trace flow-trace-right" d="M1030 -30 C1110 30 955 70 1035 125 S1100 205 1025 260 S955 345 1040 405 S1090 470 1020 550" fill="none" stroke="url(#flowGold)" stroke-width="3"/>
+      <defs>
+        <g id="flow-wave-upper-tile"><path d="M0 180 C60 180 90 110 150 110 S240 230 300 230 S390 100 450 100 S540 210 600 210 S690 120 750 120 S840 220 900 220 S990 120 1050 120 S1140 180 1200 180 L1200 260H0Z" fill="#c5edbb" fill-opacity=".035"/><path class="flow-chart-line flow-chart-upper" d="M0 180 C60 180 90 110 150 110 S240 230 300 230 S390 100 450 100 S540 210 600 210 S690 120 750 120 S840 220 900 220 S990 120 1050 120 S1140 180 1200 180" fill="none" stroke="#c5edbb" stroke-width="3"/><path class="flow-running flow-running-upper" d="M0 180 C60 180 90 110 150 110 S240 230 300 230 S390 100 450 100 S540 210 600 210 S690 120 750 120 S840 220 900 220 S990 120 1050 120 S1140 180 1200 180" pathLength="1000" fill="none"/></g>
+        <g id="flow-wave-lower-tile"><path d="M0 340 C60 340 90 400 150 400 S240 290 300 290 S390 410 450 410 S540 310 600 310 S690 400 750 400 S840 300 900 300 S990 420 1050 420 S1140 340 1200 340 L1200 260H0Z" fill="#d6b88b" fill-opacity=".035"/><path class="flow-chart-line flow-chart-lower" d="M0 340 C60 340 90 400 150 400 S240 290 300 290 S390 410 450 410 S540 310 600 310 S690 400 750 400 S840 300 900 300 S990 420 1050 420 S1140 340 1200 340" fill="none" stroke="#d6b88b" stroke-width="3"/><path class="flow-running flow-running-lower" d="M0 340 C60 340 90 400 150 400 S240 290 300 290 S390 410 450 410 S540 310 600 310 S690 400 750 400 S840 300 900 300 S990 420 1050 420 S1140 340 1200 340" pathLength="1000" fill="none"/></g>
+      </defs>
+      <g class="flow-wave-position-upper" transform="translate(0 0) scale(1 .5)"><g class="flow-wave flow-wave-upper"><use href="#flow-wave-upper-tile"/><use href="#flow-wave-upper-tile" transform="translate(1200 0)"/></g></g>
+      <g class="flow-wave-position-lower" transform="translate(0 270) scale(1 .5)"><g class="flow-wave flow-wave-lower"><use href="#flow-wave-lower-tile"/><use href="#flow-wave-lower-tile" transform="translate(1200 0)"/></g></g>
+    </svg>
+  </div>
+
 <nav class="quick-nav" aria-label="Account navigation"><a href="/">Home</a><a href="/dashboard.html">Research</a><a href="/account.html">Account</a><a href="/account.html#settings">Settings</a></nav>
 <header class="topbar">
   <a class="brand" href="/"><span class="logo">F</span><span><b>AI Finance Lab</b><small>Your research workspace</small></span></a>
+  <nav class="subpage-header-nav" aria-label="Main navigation"><a href="/">Home</a><a href="/dashboard.html">Research</a><a href="/account.html">Account</a><a href="/account.html#settings">Settings</a></nav>
   <div class="status"><span class="dot"></span><span id="apiStatus">Connecting…</span></div>
 </header>
 <main class="container">
@@ -125,6 +148,6 @@
 <script src="/account.js" defer></script>
 <script src="/statement-analysis.js" defer></script>
 <script src="/app.js" defer></script>
-<script src="/navigation.js" defer></script>
+<script src="/navigation.js?v=floating-subpages-1" defer></script>
 </body>
 </html>
