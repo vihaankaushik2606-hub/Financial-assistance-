@@ -27,3 +27,20 @@
  }
  markCurrent(); window.addEventListener('hashchange', markCurrent);
 })();
+/* Track scroll direction without changing layout or hiding focused controls. */
+(() => {
+ let previousY = window.scrollY;
+ let pending = false;
+ window.addEventListener('scroll', () => {
+  if (pending) return;
+  pending = true;
+  window.requestAnimationFrame(() => {
+   const currentY = window.scrollY;
+   if (Math.abs(currentY - previousY) >= 3) {
+    document.documentElement.classList.toggle('scrolling-up', currentY < previousY);
+    previousY = currentY;
+   }
+   pending = false;
+  });
+ }, { passive: true });
+})();
