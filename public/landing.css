@@ -46,3 +46,8 @@
 @keyframes market-wave-travel{from{transform:translateX(0)}to{transform:translateX(-1200px)}}
 .flow-chart-line{stroke-opacity:.65}
 @media(prefers-reduced-motion:reduce){.flow-wave{animation:none!important}}
+
+/* Use one landing header instead of a separate empty navigation strip. */
+.landing-market-page>.quick-nav{display:none}
+.landing-market-page .site-header .nav-account{display:none}
+.landing-market-page .site-header nav{margin-left:auto}

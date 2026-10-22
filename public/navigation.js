@@ -1,4 +1,11 @@
 (() => {
+ // The landing page uses a single compact header; other pages keep quick navigation.
+ if (document.body.classList.contains('landing-market-page')) {
+  const strip = document.querySelector('.quick-nav');
+  const profile = strip?.querySelector('.profile-link');
+  const header = document.querySelector('.site-header nav');
+  if (profile && header) { header.appendChild(profile); strip.remove(); }
+ }
  const box = document.getElementById('reduceMotion');
  let reduced = false;
  try { reduced = localStorage.getItem('finance-reduce-motion') === 'true'; } catch (_) {}
