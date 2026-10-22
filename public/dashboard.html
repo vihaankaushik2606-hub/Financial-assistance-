@@ -48,6 +48,16 @@
   </section>
 
 
+  <section class="panel" id="statementAnalysis" aria-labelledby="statementAnalysisHeading">
+    <div class="section-title"><div><div class="eyebrow">Understand the statements</div><h2 id="statementAnalysisHeading">Financial Statement Analysis</h2></div><span class="tag">Calculated from annual statements</span></div>
+    <p class="muted">See how the company earns profit, manages debt and turns earnings into cash. Load a stock above to generate an explanation from its available annual statements.</p>
+    <p id="statementAnalysisStatus" class="notice" role="status">Select a stock to see its financial analysis.</p>
+    <div id="statementAnalysisMetrics" class="metrics"></div>
+    <div id="statementAnalysisFindings" class="statement-analysis-grid"></div>
+    <p id="statementAnalysisGaps" class="notice" hidden></p>
+    <details class="analysis-method"><summary>How this analysis works</summary><p class="muted">Calculations use annual statements for one company, reporting date and currency. Growth compares the closest available prior annual period, 300–430 days earlier. Missing values stay missing. Explanations follow the figures and do not use AI. Ratios need industry context; read the annual report notes before drawing conclusions.</p></details>
+  </section>
+
   <section class="panel">
     <div class="section-title"><div><div class="eyebrow">Company overview</div><h2>Get a company overview</h2></div><span class="tag">AI-assisted · check sources</span></div>
     <p class="muted">Enter a stock ticker (for example, IBM) or a company name, then press Enter or leave the field. AI will summarize available information and clearly flag missing financial data. Company names are not automatically converted to tickers yet.</p>
@@ -113,8 +123,8 @@
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
 <script src="/account.js" defer></script>
+<script src="/statement-analysis.js" defer></script>
 <script src="/app.js" defer></script>
 <script src="/navigation.js" defer></script>
 </body>
 </html>
-
