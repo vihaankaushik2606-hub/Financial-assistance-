@@ -1,6 +1,9 @@
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
+const { AsyncLocalStorage } = require("node:async_hooks");
+const { createMarketAccess, createRpc } = require("./market-access");
+const marketContext = new AsyncLocalStorage();
 const { summarizeStatements, createBudget } = require("./research");
 const { classifyProviderError } = require("./provider-errors");
 
@@ -34,6 +37,7 @@ app.get("/api/config", (_req, res) => {
 });
 
 async function requireAuth(req, res, next) {
+  if (req.authUser) return next();
   const supabaseUrl = getEnv("SUPABASE_URL").replace(/\/$/, "");
   const supabaseAnonKey = getEnv("SUPABASE_ANON_KEY");
   const isSupabaseReady = Boolean(
@@ -100,28 +104,41 @@ function validSymbol(value) {
   return symbol;
 }
 
-// In-memory cache for FMP data
-const providerCache = new Map();
-const providerRequestsInFlight = new Map();
-const configuredBudget = Number(process.env.FMP_DAILY_REQUEST_LIMIT || 200);
-const takeProviderRequest = createBudget(Number.isInteger(configuredBudget) && configuredBudget > 0 ? configuredBudget : 200, 24 * 60 * 60 * 1000);
+// Quotas and cache reservations are persistent and atomic across server instances.
 const takeMarketRequest = createBudget(120, 60 * 1000);
-app.use(["/api/quote", "/api/daily", "/api/fundamentals"], (_req, res, next) => {
-  if (!takeMarketRequest()) {
-    res.set("Retry-After", "60");
-    return res.status(429).json({ error: "Market-data requests are temporarily limited. Try again in a minute." });
+const marketPaths = ["/api/quote", "/api/daily", "/api/fundamentals", "/api/news", "/api/company-analysis", "/api/market-usage"];
+app.use(marketPaths, requireAuth, (req,res,next) => {
+ res.set("Cache-Control","private, no-store");
+ if(!takeMarketRequest()){res.set("Retry-After","60");return res.status(429).json({error:"Please wait a minute before making more requests."});}
+ const context={userId:req.authUser?.isGuest?null:req.authUser?.id,reads:[]};
+ const original=res.json.bind(res);
+ res.json=data=>{
+  if(data&&typeof data==="object"&&context.reads.length){
+   data.marketData={reads:context.reads,stale:context.reads.some(r=>r.cache==="stale")};
+   const times=context.reads.map(r=>r.updatedAt).filter(Boolean).sort();
+   if(times.length)data.fetchedAt=times[0];
   }
-  next();
+  return original(data);
+ };
+ marketContext.run(context,next);
 });
 const CACHE_TTL_MS = {
-  quote: 15 * 60 * 1000,
-  "news/stock": 15 * 60 * 1000,
-  "news/stock-latest": 15 * 60 * 1000,
-  "historical-price-eod/full": 6 * 60 * 60 * 1000,
-  "income-statement": 24 * 60 * 60 * 1000,
-  "balance-sheet-statement": 24 * 60 * 60 * 1000,
-  "cash-flow-statement": 24 * 60 * 60 * 1000
+ quote:60*60*1000,
+ "news/stock":4*60*60*1000,
+ "news/stock-latest":4*60*60*1000,
+ "historical-price-eod/full":24*60*60*1000,
+ "income-statement":24*60*60*1000,
+ "balance-sheet-statement":24*60*60*1000,
+ "cash-flow-statement":24*60*60*1000
 };
+const marketAccess=createMarketAccess({
+ rpc:args=>createRpc({url:getEnv("SUPABASE_URL"),key:getEnv("SUPABASE_ANON_KEY"),secret:getEnv("MARKET_CACHE_SECRET")})(args),
+ fetchProvider:fetchFmpProvider
+});
+app.get("/api/market-usage",async(_req,res)=>{
+ try{res.json(await marketAccess.usage(marketContext.getStore()?.userId));}
+ catch(e){res.status(e.status||503).json({error:"Market-data limits are temporarily unavailable. No new provider calls will be made."});}
+});
 
 function getSampleQuote(symbol) {
   const samples = {
@@ -178,53 +195,26 @@ function getSampleStatements(symbol) {
 }
 
 async function fmpRequest(endpoint, params = {}) {
-  const fmpKey = getEnv("FMP_API_KEY");
-  if (!fmpKey || fmpKey.includes("replace_with")) {
-    return null; // Signals fallback to sample data
-  }
-  const cacheKey = JSON.stringify({ endpoint, params });
-  const cached = providerCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) return cached.data;
-  if (providerRequestsInFlight.has(cacheKey)) return providerRequestsInFlight.get(cacheKey);
-
-  if (!takeProviderRequest()) {
-    const err = new Error("The site's daily market-data request budget has been reached. Cached data remains available; try again later.");
-    err.status = 429;
-    throw err;
-  }
-  const request = (async () => {
-    const url = new URL(`${FMP_BASE_URL}/${endpoint}`);
-    for (const [key, value] of Object.entries({ ...params, apikey: fmpKey })) {
-      if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
-    }
-    const response = await fetch(url, { headers: { Accept: "application/json" } });
-    const data = await response.json().catch(() => null);
-    if (!response.ok || (data && !Array.isArray(data) && (data["Error Message"] || data.error || data["Error"]))) {
-      const detail = data?.["Error Message"] || data?.error || data?.["Error"] || `HTTP ${response.status}`;
-      const diagnostic = classifyProviderError(detail, response.status);
-      const err = new Error(diagnostic.message);
-      err.code = diagnostic.code;
-      err.providerStatus = response.status;
-      err.status = response.status === 401 || response.status === 403 ? 502 : response.status === 429 ? 429 : 502;
-      throw err;
-    }
-    if (data === null) {
-      const err = new Error("The market data provider returned an unreadable response.");
-      err.status = 502;
-      throw err;
-    }
-    const ttl = CACHE_TTL_MS[endpoint] || 60 * 60 * 1000;
-    for (const [key, entry] of providerCache) {
-      if (entry.expiresAt <= Date.now()) providerCache.delete(key);
-    }
-    if (providerCache.size >= 500) providerCache.delete(providerCache.keys().next().value);
-    providerCache.set(cacheKey, { data, expiresAt: Date.now() + ttl });
-    return data;
-  })();
-
-  providerRequestsInFlight.set(cacheKey, request);
-  try { return await request; }
-  finally { providerRequestsInFlight.delete(cacheKey); }
+ const fmpKey=getEnv("FMP_API_KEY");
+ if(!fmpKey||fmpKey.includes("replace_with"))return null;
+ const context=marketContext.getStore();
+ try{
+  const result=await marketAccess.request(endpoint,params,context?.userId,CACHE_TTL_MS[endpoint]||3600000);
+  context?.reads.push(result.meta);
+  return result.data;
+ }catch(e){context?.reads.push({endpoint,period:params.period,cache:"unavailable",updatedAt:null,reason:e.code||"PROVIDER_ERROR"});throw e;}
+}
+async function fetchFmpProvider(endpoint,params){
+ const url=new URL(FMP_BASE_URL+"/"+endpoint);
+ for(const [key,value] of Object.entries({...params,apikey:getEnv("FMP_API_KEY")}))if(value!==undefined&&value!==null&&value!=="")url.searchParams.set(key,String(value));
+ const response=await fetch(url,{headers:{Accept:"application/json"},signal:AbortSignal.timeout(15000)});
+ const data=await response.json().catch(()=>null);
+ if(!response.ok||(data&&!Array.isArray(data)&&(data["Error Message"]||data.error||data.Error))){
+  const diagnostic=classifyProviderError(data?.["Error Message"]||data?.error||data?.Error||("HTTP "+response.status),response.status);
+  const e=new Error(diagnostic.message);e.code=diagnostic.code;e.providerStatus=response.status;e.status=response.status===429?429:502;throw e;
+ }
+ if(data===null){const e=new Error("The market-data provider returned an unreadable response.");e.status=502;throw e;}
+ return data;
 }
 
 function fmpStatementRows(data) {
@@ -375,7 +365,7 @@ app.get("/api/daily", async (req, res) => {
   }
 });
 
-async function getFundamentals(symbol) {
+async function getFundamentals(symbol, period = "annual") {
   const fmpKey = getEnv("FMP_API_KEY");
   if (!fmpKey || fmpKey.includes("replace_with")) {
     return {
@@ -395,15 +385,12 @@ async function getFundamentals(symbol) {
 
   const entries = await Promise.all(endpoints.map(async ([label, endpoint]) => {
     try {
-      const [annualResult, quarterlyResult] = await Promise.allSettled([
-        fmpRequest(endpoint, { symbol, period: "annual", limit: 5 }),
-        fmpRequest(endpoint, { symbol, period: "quarter", limit: 8 })
-      ]);
-      const annualReports = annualResult.status === "fulfilled" && annualResult.value ? fmpStatementRows(annualResult.value) : [];
-      const quarterlyReports = quarterlyResult.status === "fulfilled" && quarterlyResult.value ? fmpStatementRows(quarterlyResult.value) : [];
+      const records=fmpStatementRows(await fmpRequest(endpoint,{symbol,period,limit:period==="quarter"?8:5}));
+      const annualReports=period==="annual"?records:[];
+      const quarterlyReports=period==="quarter"?records:[];
 
       if (!annualReports.length && !quarterlyReports.length) {
-        const reason = annualResult.status === "rejected" ? annualResult.reason?.message : quarterlyResult.status === "rejected" ? quarterlyResult.reason?.message : "No statement records returned for this symbol.";
+        const reason = "No statement records returned for this symbol.";
         return [label, { available: false, message: reason || "No statement records returned." }];
       }
       return [label, { available: true, source: "Financial Modeling Prep", annualReports, quarterlyReports }];
@@ -419,7 +406,9 @@ app.get("/api/fundamentals", async (req, res) => {
   const symbol = validSymbol(req.query.symbol);
   if (!symbol) return res.status(400).json({ error: "Please enter a valid ticker symbol." });
   try {
-    res.json(await getFundamentals(symbol));
+    const period=String(req.query.period||"annual");
+    if(!["annual","quarter"].includes(period))return res.status(400).json({error:"Choose annual or quarter statements."});
+    res.json(await getFundamentals(symbol,period));
   } catch (e) {
     res.status(e.status || 502).json({ error: e.message, code: e.code, providerStatus: e.providerStatus });
   }
@@ -509,7 +498,7 @@ app.post("/api/company-analysis", requireAuth, limitAiRequests, async (req, res)
         providerContext = JSON.stringify(summarizeStatements(data.statements));
         dataNote = data.isDemo
           ? "Demo statement figures were supplied for illustrative purposes."
-          : "Selected fields from up to two annual and two quarterly periods per statement are supplied where available. Missing fields are null, not zero. Respect each statement's availability; compare matching periods and currencies only.";
+          : "Selected fields from up to two annual periods per statement are supplied where available. Missing fields are null, not zero. Respect each statement's availability; compare matching periods and currencies only.";
       } else {
         dataNote = String(data.error || "Financial statements were unavailable.");
       }

@@ -59,6 +59,7 @@ async function initAccount() {
 }
 
 function renderAccount(session) {
+  window.dispatchEvent(new Event("finance-account-changed"));
   profileLink.classList.toggle("signed-in", Boolean(session));
   profileLink.setAttribute("aria-label", session ? "View your account details" : "Sign in or create an account");
   profileLink.title = session ? "Your account details" : "Sign in";
@@ -232,9 +233,13 @@ $("googleSignInBtn")?.addEventListener("click", () => runAuthAction("google"));
 $("signOutBtn")?.addEventListener("click", () => runAuthAction("signout"));
 $("refreshHistoryBtn")?.addEventListener("click", loadPrivateHistory);
 
+let resolveFinanceAccount;
+window.FinanceAccount={ready:new Promise(resolve=>{resolveFinanceAccount=resolve;}),token:getAccessToken};
+const startFinanceAccount=()=>initAccount().finally(()=>resolveFinanceAccount());
 // Initialize when DOM is ready
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initAccount);
+  document.addEventListener("DOMContentLoaded", startFinanceAccount);
 } else {
-  initAccount();
+  startFinanceAccount();
 }
+

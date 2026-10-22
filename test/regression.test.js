@@ -54,7 +54,7 @@ test('quote preserves zero change and volume when linked statements fail', async
   node('symbol').value = 'IBM';
   await node('loadBtn').listeners.click();
   assert.match(node('marketCards').innerHTML, /123/);
-  assert.match(node('marketCards').innerHTML, /Today&#39;s Change<\/div>\s*<div class="value">0/);
+  assert.match(node('marketCards').innerHTML, /Reported Change<\/div>\s*<div class="value">0/);
   assert.match(node('marketCards').innerHTML, /Volume<\/div>\s*<div class="value">0/);
   assert.match(node('manualSource').textContent, /Statements not included/);
   assert.equal(node('loadBtn').disabled, false);
@@ -112,24 +112,13 @@ test('clearing scanner figures also clears attached AI context and old scenarios
   assert.equal(node('scenarioCards').innerHTML, '');
 });
 
-test('upstream budget is enforced while cached and concurrent requests share one call', async () => {
-  // Exercise the server's actual provider function without network or credentials.
-  const app = { use() {}, get() {}, post() {} };
-  const express = Object.assign(() => app, { json() {}, static() {} });
-  let calls = 0;
-  const context = vm.createContext({
-    require: name => name === 'express' ? express : name === 'dotenv' ? { config() {} } : name.startsWith('./') ? require('../server/' + name.slice(2)) : require(name),
-    module: { exports: {} }, __dirname: path.join(__dirname, '../server'),
-    process: { env: { FMP_API_KEY: 'test-only', FMP_DAILY_REQUEST_LIMIT: '1' } }, URL, console,
-    fetch: async () => { calls++; return response([{ symbol: 'IBM', price: 100 }]); }
-  });
-  vm.runInContext(source('server/index.js'), context);
-  const request = () => vm.runInContext('fmpRequest("quote", { symbol: "IBM" })', context);
-  await Promise.all([request(), request()]);
-  await request();
-  assert.equal(calls, 1);
-  await assert.rejects(vm.runInContext('fmpRequest("quote", { symbol: "MSFT" })', context), error => error.status === 429);
-  assert.equal(calls, 1);
+test('server loads only the requested statement period, three provider calls per analysis', async () => {
+ const app={use(){},get(){},post(){}},express=Object.assign(()=>app,{json(){},static(){}}),calls=[];
+ const access={createRpc:()=>async()=>({}),createMarketAccess:()=>({request:async(endpoint,params)=>{calls.push({endpoint,params});return{data:[{date:'2025-09-30'}],meta:{endpoint,updatedAt:'2026-01-01T00:00:00Z',cache:'fresh'}};}})};
+ const context=vm.createContext({require:name=>name==='express'?express:name==='dotenv'?{config(){}}:name==='./market-access'?access:name.startsWith('./')?require('../server/'+name.slice(2)):require(name),module:{exports:{}},__dirname:path.join(__dirname,'../server'),process:{env:{FMP_API_KEY:'test-only'}},URL,console});
+ vm.runInContext(source('server/index.js'),context);
+ await vm.runInContext('getFundamentals("IBM")',context);assert.equal(calls.length,3);assert.ok(calls.every(c=>c.params.period==='annual'));
+ calls.length=0;await vm.runInContext('getFundamentals("IBM","quarter")',context);assert.equal(calls.length,3);assert.ok(calls.every(c=>c.params.period==='quarter'));
 });
 
 test('stock lookup renders statement analysis and a subsequent failure clears stale results', async () => {
