@@ -82,3 +82,27 @@
 @media(prefers-reduced-motion:reduce) {
   .report-preview .preview-title h2 { animation:none;transform:none; }
 }
+
+/* Let the illustration float as open linework rather than a rectangular image. */
+.report-preview { overflow:visible; }
+.report-preview .preview-chart {
+  display:block;width:100%;height:auto;
+  margin:28px 0 30px;
+  overflow:visible;background:none;
+  animation:profit-chart-float 7s ease-in-out infinite;
+  animation-timeline:auto;animation-range:normal;
+}
+.report-preview .preview-chart path {
+  vector-effect:non-scaling-stroke;
+  stroke-width:3.5;
+}
+@keyframes profit-chart-float {
+  0%,100% { transform:translateY(0); }
+  50% { transform:translateY(-10px); }
+}
+@media(max-width:700px) {
+  .report-preview .preview-chart { width:100%;margin:32px 0; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .report-preview .preview-chart { animation:none;transform:none; }
+}
