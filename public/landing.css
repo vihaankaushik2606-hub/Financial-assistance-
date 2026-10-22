@@ -20,8 +20,8 @@
 
 .flow-trace{stroke-dasharray:10 14;animation:market-trace-flow 18s linear infinite}
 .flow-trace-right{animation-duration:22s;animation-direction:reverse}
-.flow-center-line{stroke-dasharray:4 12;animation:market-line-flow 14s linear infinite}
-.flow-center-glow{animation:market-line-glow 4.5s ease-in-out infinite}
+.flow-center-line{stroke:#d8b8ff;stroke-dasharray:none;stroke-width:2.6;stroke-opacity:1;filter:drop-shadow(0 0 6px #c68aff);animation:none}
+.flow-center-glow{stroke:#c68aff;stroke-width:12;stroke-opacity:.28;animation:market-line-glow 4.5s ease-in-out infinite}
 .flow-pulse{filter:drop-shadow(0 0 7px currentColor);animation:market-pulse 3.5s ease-in-out infinite}
 .flow-pulse-right{animation-delay:1.3s}
 @keyframes market-trace-flow{to{stroke-dashoffset:-240}}
