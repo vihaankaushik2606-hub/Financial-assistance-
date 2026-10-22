@@ -46,3 +46,88 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline-color:#d5b4ff}
 .features h3{font-weight:600}
 .preview-chart path[stroke="#b9e9bf"]{stroke:#c49aff}
 @media(max-width:700px){.container{padding-inline:18px}.panel{padding:20px 16px}.hero h1{font-size:36px}.hero p{font-size:15px}.section-title h2{font-size:23px}}
+
+
+/* Floating content treatment: let the shared market background show through. */
+.panel,
+.account-card,
+.report-preview,
+.metric,
+.finding,
+.statement,
+.feature-card,
+.feature-item,
+.report-card,
+.analysis-card,
+.insight-card,
+.stat-card,
+.result-card,
+.history-list .finding {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.panel,
+.account-card,
+.report-preview,
+.metric,
+.finding,
+.statement,
+.feature-card,
+.feature-item,
+.report-card,
+.analysis-card,
+.insight-card,
+.stat-card,
+.result-card {
+  border-radius: 0;
+}
+.panel:hover,
+.account-card:hover,
+.report-preview:hover,
+.metric:hover,
+.finding:hover,
+.statement:hover,
+.feature-card:hover,
+.feature-item:hover,
+.report-card:hover,
+.analysis-card:hover,
+.insight-card:hover,
+.stat-card:hover,
+.result-card:hover {
+  box-shadow: none !important;
+  transform: none;
+}
+/* Keep real controls legible and usable; only remove surrounding card chrome. */
+.account-card input,
+.account-card textarea,
+.account-card select,
+input,
+textarea,
+select,
+.google-button,
+.primary,
+.mint,
+.button,
+.quick-nav {
+  /* Explicitly retain their own control/navigation styling. */
+}
+@media (max-width: 700px) {
+  .panel,
+  .account-card,
+  .report-preview,
+  .metric,
+  .finding,
+  .statement,
+  .feature-card,
+  .feature-item,
+  .report-card,
+  .analysis-card,
+  .insight-card,
+  .stat-card,
+  .result-card {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+}
