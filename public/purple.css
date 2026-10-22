@@ -183,3 +183,44 @@ select,
     scale: 1 !important;
   }
 }
+
+
+/* Pop-up text focus: every text block grows near the viewport centre and recedes as it scrolls past. */
+@supports (animation-timeline: view()) {
+  body :is(
+    h1, h2, h3, h4, h5, h6,
+    p, li, label, legend, blockquote, figcaption,
+    dt, dd, th, td, summary,
+    .eyebrow, .overline, .muted, .hero-note,
+    .feature-number, .card-heading, .preview-top,
+    .preview-bottom, .chart-legend, .notice,
+    .account-benefits, .divider
+  ) {
+    animation: text-scroll-pop 1ms linear both;
+    animation-timeline: view(block);
+    animation-range: entry 0% exit 100%;
+    transform-origin: center center;
+  }
+
+  @keyframes text-scroll-pop {
+    0% { scale: .82; }
+    50% { scale: 1.12; }
+    100% { scale: .82; }
+  }
+}
+
+/* Keep all text at its natural size when reduced motion is requested. */
+@media (prefers-reduced-motion: reduce) {
+  body :is(
+    h1, h2, h3, h4, h5, h6,
+    p, li, label, legend, blockquote, figcaption,
+    dt, dd, th, td, summary,
+    .eyebrow, .overline, .muted, .hero-note,
+    .feature-number, .card-heading, .preview-top,
+    .preview-bottom, .chart-legend, .notice,
+    .account-benefits, .divider
+  ) {
+    animation: none !important;
+    scale: 1 !important;
+  }
+}
