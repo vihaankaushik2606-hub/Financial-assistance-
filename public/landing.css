@@ -51,3 +51,10 @@
 .landing-market-page>.quick-nav{display:none}
 .landing-market-page .site-header .nav-account{display:none}
 .landing-market-page .site-header nav{margin-left:auto}
+
+/* Centre the example heading in the open space above its chart. */
+.report-preview .preview-title { justify-content:center;text-align:center; }
+.report-preview .preview-title>div { width:100%; }
+.report-preview .preview-title h2 { margin-inline:auto; }
+.report-preview .preview-title .orbit { display:none; }
+.report-preview .chart-legend { justify-content:center; }
