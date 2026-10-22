@@ -131,3 +131,55 @@ select,
     box-shadow: none !important;
   }
 }
+
+
+/* Scroll focus: content gently grows at the viewport centre, then shrinks as it passes. */
+@supports (animation-timeline: view()) {
+  .panel,
+  .account-card,
+  .report-preview,
+  .metric,
+  .finding,
+  .statement,
+  .feature-card,
+  .feature-item,
+  .report-card,
+  .analysis-card,
+  .insight-card,
+  .stat-card,
+  .result-card {
+    animation-name: scroll-center-focus;
+    animation-duration: 1ms;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+    animation-timeline: view(block);
+    animation-range: entry 0% exit 100%;
+    transform-origin: center center;
+  }
+
+  @keyframes scroll-center-focus {
+    0% { scale: .88; }
+    50% { scale: 1; }
+    100% { scale: .88; }
+  }
+}
+
+/* Respect accessibility preferences and avoid scroll-linked motion when reduced motion is enabled. */
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .account-card,
+  .report-preview,
+  .metric,
+  .finding,
+  .statement,
+  .feature-card,
+  .feature-item,
+  .report-card,
+  .analysis-card,
+  .insight-card,
+  .stat-card,
+  .result-card {
+    animation: none !important;
+    scale: 1 !important;
+  }
+}
