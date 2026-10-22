@@ -203,11 +203,11 @@ select,
   }
 
   @keyframes text-scroll-pop {
-    0% { opacity: 0; translate: var(--text-entry-x, 64px) 24px; scale: .94; }
-    20% { opacity: 1; translate: 0 0; scale: 1; }
-    50% { opacity: 1; translate: 0 0; scale: 1.08; }
-    75% { opacity: 1; translate: 0 0; scale: 1; }
-    100% { opacity: 0; translate: var(--text-exit-x, -96px) -24px; scale: .96; }
+    0%, 12% { opacity:0; translate:var(--text-entry-x, 96px) 20px; scale:.94; }
+    35% { opacity:1; translate:0 0; scale:1; }
+    50% { opacity:1; translate:0 0; scale:1.08; }
+    65% { opacity:1; translate:0 0; scale:1; }
+    88%, 100% { opacity:0; translate:var(--text-exit-x, -96px) -20px; scale:.96; }
   }
 }
 
@@ -286,3 +286,9 @@ body { width:100%; max-width:100%; overflow-x:clip; }
  .floating-subpage .section-title,.floating-subpage .actions { flex-wrap:wrap; }
  input,textarea,select { max-width:100%; min-width:0; }
 }
+
+/* Opposing wave travel: green moves right, gold moves left. */
+.market-flow-backdrop .flow-wave-upper { animation-direction:reverse; }
+.market-flow-backdrop .flow-wave-lower { animation-direction:normal; }
+.market-flow-backdrop .flow-running-upper { animation-direction:reverse; }
+.market-flow-backdrop .flow-running-lower { animation-direction:normal; }
