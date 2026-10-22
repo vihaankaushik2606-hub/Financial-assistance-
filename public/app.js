@@ -97,6 +97,7 @@ $("loadBtn")?.addEventListener("click", async () => {
 
   if (loadBtn?.disabled) return;
   if (loadBtn) loadBtn.disabled = true;
+  window.CompanyPriceChart?.load(requestedSymbol);
   resetLinkedNumbers();
   resetStatementAnalysis(`Loading annual statements for ${requestedSymbol}…`);
   if (messageEl) messageEl.textContent = `Fetching market data for ${requestedSymbol}…`;
