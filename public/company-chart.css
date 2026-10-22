@@ -7,3 +7,7 @@
 .tradingview-widget-copyright { text-align: center; font-size: 12px; line-height: 32px; }
 .tradingview-widget-copyright a, #companyPriceLink { color: #c49bfa; }
 @media (max-width: 600px) { #companyPriceChart { height: 420px; } }
+
+/* Open chart surface, continuous with the surrounding page. */
+.company-price-section, #companyPriceChart, #companyPriceChart .tradingview-widget-container { background:transparent!important; border:0!important; box-shadow:none!important; }
+#companyPriceChart iframe { background:transparent; color-scheme:dark; }

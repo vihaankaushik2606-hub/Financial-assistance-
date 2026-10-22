@@ -33,10 +33,10 @@
       script.async = true;
       script.textContent = JSON.stringify({
         autosize: true, symbol, interval: "D", timezone: "Etc/UTC", theme: "dark",
-        style: "2", locale: "en", backgroundColor: "#08050d",
-        gridColor: "rgba(196,155,250,0.05)", allow_symbol_change: false,
-        hide_side_toolbar: true, hide_top_toolbar: false, hide_volume: false,
-        withdateranges: true, save_image: false, calendar: false,
+        style: "2", locale: "en", backgroundColor: "rgba(5, 3, 7, 0)",
+        gridColor: "rgba(196,155,250,0)", allow_symbol_change: false,
+        hide_side_toolbar: true, hide_top_toolbar: true, hide_legend: true, hide_volume: true,
+        withdateranges: false, save_image: false, calendar: false,
         support_host: "https://www.tradingview.com",
         overrides: { "mainSeriesProperties.lineStyle.color": "#c49bfa" }
       });
