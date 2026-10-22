@@ -44,3 +44,7 @@
   });
  }, { passive: true });
 })();
+
+(() => {const nav=document.querySelector(".site-header nav,.subpage-header-nav,.quick-nav");if(nav&&!nav.querySelector('a[href="/research-lab.html"]')){const a=document.createElement("a");a.href="/research-lab.html";a.textContent="Research Lab";if(location.pathname==="/research-lab.html")a.setAttribute("aria-current","page");nav.append(a);}})();
+
+(()=>{const n=document.querySelector(".site-header nav,.subpage-header-nav,.quick-nav");if(n&&!n.querySelector('a[href="/news.html"]')){const a=document.createElement("a");a.href="/news.html";a.textContent="News";n.append(a);}})();
