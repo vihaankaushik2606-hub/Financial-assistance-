@@ -11,6 +11,13 @@
 .market-flow-backdrop{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;opacity:.6}
 .market-flow-backdrop svg{display:block;width:100%;height:100%;min-height:100%;overflow:visible}
 .flow-grid{stroke-width:1}
+.flow-chart-line{stroke-dasharray:14 11;stroke-linecap:round;animation:market-chart-flow 18s linear infinite;filter:drop-shadow(0 0 5px #c5edbb55)}
+.flow-chart-lower{animation-duration:23s;animation-direction:reverse;filter:drop-shadow(0 0 5px #d6b88b44)}
+.flow-chart-area{transition:opacity .3s}
+.market-flow-backdrop{z-index:0;opacity:.82}
+.hero-copy,.report-preview{position:relative;z-index:1}
+@keyframes market-chart-flow{to{stroke-dashoffset:-300}}
+
 .flow-trace{stroke-dasharray:10 14;animation:market-trace-flow 18s linear infinite}
 .flow-trace-right{animation-duration:22s;animation-direction:reverse}
 .flow-center-line{stroke-dasharray:4 12;animation:market-line-flow 14s linear infinite}
