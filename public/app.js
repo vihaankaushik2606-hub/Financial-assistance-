@@ -1,3 +1,4 @@
+(() => {
 // Safe helpers in case script loads independently
 const $ = (id) => (window.$ ? window.$(id) : document.getElementById(id));
 const esc = (v) => (window.esc ? window.esc(v) : String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])));
@@ -11,6 +12,7 @@ const fmt = (v, digits = 2) => {
 };
 
 const formatCompact = (v) => {
+  if (v === null || v === undefined || v === "") return "—";
   const n = Number(v);
   if (!Number.isFinite(n)) return "—";
   const abs = Math.abs(n);
@@ -93,47 +95,19 @@ $("loadBtn")?.addEventListener("click", async () => {
     return;
   }
 
+  if (loadBtn?.disabled) return;
   if (loadBtn) loadBtn.disabled = true;
+  resetLinkedNumbers();
   if (messageEl) messageEl.textContent = `Fetching market data for ${requestedSymbol}…`;
   if (marketCards) marketCards.innerHTML = "";
 
   try {
-    const ticker = encodeURIComponent(symbol());
-    const [quoteResult, dailyResult] = await Promise.allSettled([api(`/api/quote?symbol=${ticker}`), api(`/api/daily?symbol=${ticker}`)]);
-    const rows = dailyResult.status === "fulfilled" ? dailyResult.value.rows || [] : [];
-    if (quoteResult.status === "fulfilled") {
-      const q = quoteResult.value, x = q.quote || {};
-      $("marketCards").innerHTML = [
-        metric("Ticker", q.symbol, "Source: Financial Modeling Prep"),
-        metric("Latest available price", x["05. price"] ?? "Unavailable", "Provider quote; not guaranteed real-time"),
-        metric("Change", x["09. change"] ?? "—", x["10. change percent"] ?? ""),
-        metric("Latest trading day", x["07. latest trading day"] ?? "—"),
-        metric("Volume", x["06. volume"] ?? "—"),
-        metric("Fetched at", new Date(q.fetchedAt).toLocaleString(), "Provider data can be delayed")
-      ].join("");
-    }
-    $("historyRows").innerHTML = rows.slice(0,20).map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.open)}</td><td>${esc(r.high)}</td><td>${esc(r.low)}</td><td>${esc(r.close)}</td><td>${esc(r.volume)}</td></tr>`).join("");
-    $("historySection").hidden = rows.length === 0;
-    const errors = [];
-    if (quoteResult.status === "rejected") errors.push(`Quote unavailable: ${quoteResult.reason.message}`);
-    if (dailyResult.status === "rejected") errors.push(`Daily prices unavailable: ${dailyResult.reason.message}`);
-    $("message").textContent = errors.length ? errors.join(" ") : "Market data fetched. Verify the symbol, currency, trading date, and provider terms before relying on it.";
-  } catch(e) { $("message").textContent = `Could not fetch market data: ${e.message}`; }
-  finally { $("loadBtn").disabled = false; }
     const q = await api(`/api/quote?symbol=${encodeURIComponent(requestedSymbol)}`);
     const x = q.quote?.raw || {};
     const timestamp = x.timestamp ? new Date(Number(x.timestamp) * 1000) : null;
     const updated = timestamp && Number.isFinite(timestamp.getTime()) ? timestamp.toLocaleString() : "Recent";
     const changePct = x.changePercentage !== undefined && x.changePercentage !== null ? formatPercent(x.changePercentage) : "—";
     const mktCap = x.marketCap ? formatCompact(x.marketCap) : "—";
-
-    // Auto-populate revenue in manual scanner and scenario lab if available
-    if (x.marketCap && !$("revenue")?.value) {
-      const estimatedRev = Math.round(x.marketCap * 0.15);
-      if ($("scenarioRevenue") && !$("scenarioRevenue").value) {
-        $("scenarioRevenue").value = estimatedRev;
-      }
-    }
 
     if (marketCards) {
       marketCards.innerHTML = [
@@ -160,6 +134,7 @@ $("loadBtn")?.addEventListener("click", async () => {
   } catch (e) {
     if (messageEl) messageEl.textContent = `Could not load quote: ${e.message}`;
   } finally {
+    await loadLinkedNumbers(requestedSymbol);
     if (loadBtn) loadBtn.disabled = false;
   }
 });
@@ -292,24 +267,74 @@ $("fundamentalsBtn")?.addEventListener("click", async () => {
   }
 });
 
+
+const linkedFields = ["revenue","expenses","profit","ocf","debt","cash","priorRevenue","priorProfit","period"];
+function resetLinkedNumbers() {
+  linkedFields.forEach(id => { if ($(id)) $(id).value = ""; });
+  ["ratioCards","scenarioCards"].forEach(id => { if ($(id)) $(id).innerHTML = ""; });
+  if ($("scenarioRevenue")) $("scenarioRevenue").value = "";
+  if ($("aiQuestion")) delete $("aiQuestion").dataset.context;
+  if ($("findings")) $("findings").innerHTML = "";
+  if ($("manualSource")) $("manualSource").textContent = "Loading financial statements…";
+}
+async function loadLinkedNumbers(ticker) {
+  try {
+    const d = await api(`/api/fundamentals?symbol=${encodeURIComponent(ticker)}`);
+    if (getSymbol() !== ticker) return;
+    if (d.isDemo) throw new Error("Only demo statements are available. Automatic ratios need reported company figures.");
+    const statements = d.statements || {};
+    const annual = key => (statements[key]?.available ? statements[key].annualReports || [] : [])
+      .filter(r => r.date && r.reportedCurrency && (!r.symbol || r.symbol === ticker))
+      .sort((a,b) => b.date.localeCompare(a.date));
+    const incomes = annual("incomeStatement");
+    const current = incomes[0];
+    if (!current) throw new Error(statements.incomeStatement?.message || "Annual income statements are not available for this stock.");
+    const matching = key => annual(key).find(r => r.date === current.date && r.reportedCurrency === current.reportedCurrency);
+    const cashflow = matching("cashFlow"), balance = matching("balanceSheet");
+    const previous = incomes.find(r => r.date !== current.date && r.reportedCurrency === current.reportedCurrency && Number(current.date.slice(0,4)) - Number(r.date.slice(0,4)) === 1);
+    const values = {
+      revenue: current.revenue, expenses: current.operatingExpenses, profit: current.netIncome,
+      ocf: cashflow?.operatingCashFlow, debt: balance?.totalDebt, cash: balance?.cashAndCashEquivalents,
+      priorRevenue: previous?.revenue, priorProfit: previous?.netIncome
+    };
+    const missing = [];
+    for (const [id,value] of Object.entries(values)) {
+      const valid = value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+      if ($(id)) $(id).value = valid ? String(value) : "";
+      if (!valid) missing.push(id);
+    }
+    const source = `${ticker} · year ended ${current.date} · ${current.reportedCurrency} · Financial Modeling Prep`;
+    $("period").value = source;
+    if ($("scenarioRevenue")) $("scenarioRevenue").value = $("revenue").value;
+    calcRatios(true);
+    $("manualSource").textContent = source + ". Ratios calculated automatically from available annual figures. " +
+      (missing.length ? "Some figures are unavailable; calculations needing them are omitted." : "Check important figures against the annual report.");
+    const labels = {incomeStatement:"Income statement",balanceSheet:"Balance sheet",cashFlow:"Cash flow"};
+    if ($("fundamentalsOutput")) $("fundamentalsOutput").innerHTML = Object.entries(statements).map(([key,item])=>renderStatementTable(labels[key] || key,item)).join("");
+  } catch (error) {
+    if (getSymbol() !== ticker) return;
+    $("manualSource").textContent = `Automatic figures for ${ticker} are unavailable: ${error.message} You can still enter figures from its annual report below.`;
+    $("findings").innerHTML = '<p class="muted">No automatic ratios available. Missing data has not been treated as zero.</p>';
+  }
+}
+$("symbol")?.addEventListener("change", () => { if (getSymbol() && !$("loadBtn")?.disabled) $("loadBtn")?.click(); });
+
 // 02 / Automatic Company Analysis
 const autoCompanyInput = $("autoCompany");
 let autoAnalysisInFlight = false;
-async function runAutomaticCompanyAnalysis() {
-  const company = autoCompanyInput.value.trim();
-  if (!company || autoAnalysisInFlight) return;
-  autoAnalysisInFlight = true;
 async function runAutomaticCompanyAnalysis() {
   const company = autoCompanyInput?.value.trim();
   const button = $("autoAnalyzeBtn");
   const outputEl = $("autoAnalysisOutput");
   const statusEl = $("autoAnalysisStatus");
 
+  if (autoAnalysisInFlight) return;
   if (!company) {
     if (statusEl) statusEl.textContent = "Please enter a company name or ticker (e.g. Apple or AAPL).";
     return;
   }
 
+  autoAnalysisInFlight = true;
   if (button) button.disabled = true;
   if (outputEl) outputEl.hidden = true;
   if (statusEl) statusEl.textContent = `Analyzing ${company} with educational AI…`;
@@ -344,7 +369,6 @@ async function runAutomaticCompanyAnalysis() {
     if (statusEl) statusEl.textContent = error.message || "Automatic analysis failed.";
   } finally {
     autoAnalysisInFlight = false;
-    button.disabled = false;
     if (button) button.disabled = false;
   }
 }
@@ -371,14 +395,14 @@ function fieldsForHistory() {
     .join("\n");
 }
 
-function calcRatios() {
+function calcRatios(automatic = false) {
   const revenue=num("revenue"), expenses=num("expenses"), profit=num("profit"), ocf=num("ocf"), debt=num("debt"), cash=num("cash");
   const priorRevenue=num("priorRevenue"), priorProfit=num("priorProfit");
   const out=[];
   if (revenue !== null && revenue > 0 && profit !== null) out.push(metric("Net profit margin",`${fmt(profit/revenue*100)}%`,"Net profit ÷ revenue"));
   if (revenue !== null && revenue > 0 && expenses !== null) out.push(metric("Expense ratio",`${fmt(expenses/revenue*100)}%`,"Operating expenses ÷ revenue"));
-  if (profit !== null && ocf !== null) out.push(metric("Operating cash flow",moneyish(ocf),"Compare with profit across matching periods"));
-  if (debt !== null && cash !== null) out.push(metric("Net debt",moneyish(debt-cash),"Debt minus cash; same units required"));
+  if (profit !== null && ocf !== null) out.push(metric("Operating cash flow",fmt(ocf),"Compare with profit across matching periods"));
+  if (debt !== null && cash !== null) out.push(metric("Net debt",fmt(debt-cash),"Debt minus cash; same units required"));
   if (revenue > 0 && priorRevenue !== null && priorRevenue > 0) out.push(metric("Revenue growth",`${fmt((revenue/priorRevenue-1)*100)}%`,"Current vs prior period"));
   if (profit !== null && priorProfit !== null && priorProfit !== 0) out.push(metric("Profit change",`${fmt((profit-priorProfit)/Math.abs(priorProfit)*100)}%`,"Change ÷ absolute prior profit; positive means improvement"));
   $("ratioCards").innerHTML = out.join("");
@@ -389,115 +413,14 @@ function calcRatios() {
   if (revenue > 0 && expenses !== null && expenses > revenue) findings.push(["warn","Entered expenses exceed revenue","Check whether expenses use the same period and definition as revenue."]);
   if (revenue > 0 && priorRevenue !== null && priorRevenue > 0 && profit !== null && priorProfit !== null && revenue > priorRevenue && profit < priorProfit) findings.push(["warn","Revenue rose while profit fell","Investigate margin pressure, higher costs, financing costs, and exceptional items."]);
   if (revenue > 0 && priorRevenue !== null && priorRevenue > 0 && profit !== null && priorProfit !== null && revenue < priorRevenue && profit > priorProfit) findings.push(["warn","Profit rose while revenue fell","Check one-off gains, cost cuts, asset sales, and accounting notes."]);
-  if (!findings.length) findings.push(["good","No configured pattern flagged","This does not establish that a company is financially healthy. Review filings, peer data, footnotes, and multiple periods."]);
+  if (!findings.length) findings.push(["good",out.length ? "No configured pattern flagged" : "Not enough figures to check","This does not establish that a company is financially healthy. Review filings, peer data, footnotes, and multiple periods."]);
   $("findings").innerHTML = findings.map(([kind,title,body])=>`<article class="finding ${kind}"><b>${esc(title)}</b><p>${esc(body)}</p></article>`).join("");
   const period=$("period").value.trim();
   $("manualSource").textContent = `Source status: user-entered figures, not independently verified. ${period ? `Provided reporting period/source: ${period}.` : "Add a reporting period and source URL/reference before sharing this report."} Ratios are only comparable when definitions, currency, and periods match.`;
-  if (currentSession) savePrivateHistory("manual-analysis", "Manual company truth scan", `${fieldsForHistory() }\n\n${$("findings").innerText}`);
-  const revenue = num("revenue");
-  const expenses = num("expenses");
-  const profit = num("profit");
-  const ocf = num("ocf");
-  const debt = num("debt");
-  const cash = num("cash");
-  const priorRevenue = num("priorRevenue");
-  const priorProfit = num("priorProfit");
-
-  const out = [];
-  if (revenue !== null && revenue > 0 && profit !== null) {
-    out.push(metric("Net Profit Margin", `${fmt((profit / revenue) * 100)}%`, "Profit ÷ Revenue"));
-  }
-  if (revenue !== null && revenue > 0 && expenses !== null) {
-    out.push(metric("Operating Expense Ratio", `${fmt((expenses / revenue) * 100)}%`, "Expenses ÷ Revenue"));
-  }
-  if (profit !== null && ocf !== null) {
-    out.push(metric("Operating Cash Flow", formatCompact(ocf), "Compare with Net Profit"));
-  }
-  if (debt !== null && cash !== null) {
-    out.push(metric("Net Debt", formatCompact(debt - cash), "Total Debt minus Cash"));
-  }
-  if (revenue > 0 && priorRevenue !== null && priorRevenue > 0) {
-    const growth = ((revenue / priorRevenue) - 1) * 100;
-    out.push(metric("Revenue Growth", formatPercent(growth), "Current vs Prior Period"));
-  }
-  if (profit !== null && priorProfit !== null && priorProfit !== 0) {
-    const pChange = ((profit / priorProfit) - 1) * 100;
-    out.push(metric("Profit Change", formatPercent(pChange), "Current vs Prior Period"));
-  }
-
-  if ($("ratioCards")) $("ratioCards").innerHTML = out.join("");
-
-  const findings = [];
-  if (profit !== null && ocf !== null && profit > 0 && ocf < 0) {
-    findings.push([
-      "alert",
-      "⚠️ Positive Accounting Profit but Negative Cash Flow",
-      "Operating cash flow is negative despite positive accounting profit. Investigate changes in accounts receivable, inventory accumulation, or one-time gains."
-    ]);
-  }
-  if (profit !== null && ocf !== null && profit > 0 && ocf >= 0 && ocf < profit * 0.5) {
-    findings.push([
-      "warn",
-      "⚠️ Cash Flow Trails Net Profit Significantly",
-      "Operating cash flow is less than half of net income. Check working capital changes and non-cash accounting accruals."
-    ]);
-  }
-  if (debt !== null && cash !== null && debt > cash * 3) {
-    findings.push([
-      "warn",
-      "Debt Exceeds Cash by More than 3x",
-      "Total debt is substantially higher than cash reserves. Check maturity schedules, interest coverage ratio, and refinance risks."
-    ]);
-  }
-  if (revenue > 0 && expenses !== null && expenses > revenue) {
-    findings.push([
-      "warn",
-      "Operating Expenses Exceed Revenue",
-      "Operating costs exceed incoming revenue. Verify if this includes non-operating or non-recurring charges."
-    ]);
-  }
-  if (revenue > 0 && priorRevenue !== null && priorRevenue > 0 && profit !== null && priorProfit !== null && revenue > priorRevenue && profit < priorProfit) {
-    findings.push([
-      "warn",
-      "Revenue Expanded while Profit Contracted",
-      "Top-line growth with margin compression. Check gross margins, input cost inflation, or increased operating spend."
-    ]);
-  }
-  if (revenue > 0 && priorRevenue !== null && priorRevenue > 0 && profit !== null && priorProfit !== null && revenue < priorRevenue && profit > priorProfit) {
-    findings.push([
-      "warn",
-      "Profit Rose while Revenue Contracted",
-      "Profit grew despite lower sales. Check cost-cutting measures, asset disposals, or tax benefits in footnotes."
-    ]);
-  }
-  if (!findings.length) {
-    findings.push([
-      "good",
-      "✅ No High-Risk Patterns Flagged",
-      "Calculated metrics fit standard ranges for the entered period. Remember to compare across multiple years and peer companies."
-    ]);
-  }
-
-  if ($("findings")) {
-    $("findings").innerHTML = findings.map(([kind, title, body]) => `
-      <article class="finding ${kind}">
-        <b>${esc(title)}</b>
-        <p>${esc(body)}</p>
-      </article>
-    `).join("");
-  }
-
-  const period = $("period")?.value.trim() || "";
-  if ($("manualSource")) {
-    $("manualSource").textContent = `Source status: user-entered figures. ${period ? `Reporting period / source: ${period}.` : "Add a reporting period/source for clear attribution."} Ratios are only valid when currency and accounting standards match.`;
-  }
-
-  if (typeof savePrivateHistory === "function") {
-    savePrivateHistory("manual-analysis", "Company Truth Scan", `${fieldsForHistory()}\n\n${$("findings")?.innerText || ""}`);
-  }
+  if (!automatic && currentSession) savePrivateHistory("manual-analysis", "Manual company truth scan", `${fieldsForHistory() }\n\n${$("findings").innerText}`);
 }
 
-$("scanBtn")?.addEventListener("click", calcRatios);
+$("scanBtn")?.addEventListener("click", () => calcRatios(false));
 
 $("aiContextBtn")?.addEventListener("click", () => {
   const fields = [
@@ -573,13 +496,6 @@ $("aiAskBtn")?.addEventListener("click", async () => {
     if (button) button.disabled = false;
   }
 });
-$("clearBtn").addEventListener("click",()=>{
-  ["revenue","expenses","profit","ocf","debt","cash","priorRevenue","priorProfit","period"].forEach(id=>$(id).value="");
-  $("ratioCards").innerHTML=""; $("findings").innerHTML='<p class="muted">Enter figures and run the scanner to see calculated ratios and research prompts.</p>';
-  $("manualSource").textContent="Source status: figures have not been entered.";
-  delete $("aiQuestion").dataset.context;
-  $("scenarioCards").innerHTML = "";
-
 $("clearBtn")?.addEventListener("click", () => {
   ["revenue", "expenses", "profit", "ocf", "debt", "cash", "priorRevenue", "priorProfit", "period"].forEach(id => {
     if ($(id)) $(id).value = "";
@@ -629,3 +545,5 @@ $("scenarioBtn")?.addEventListener("click", () => {
 checkHealth();
 
 setupQuickTickers();
+
+})();

@@ -60,8 +60,8 @@
   </section>
 
   <section class="panel">
-    <div class="section-title"><div><div class="eyebrow">Your figures</div><h2>Check the numbers</h2></div><span class="tag">Calculated from your figures</span></div>
-    <p class="muted">Use figures from the same reporting period and currency. We’ll calculate the ratios and suggest what to check next.</p>
+    <div class="section-title"><div><div class="eyebrow">Company figures</div><h2>Check the numbers</h2></div><span class="tag">Calculated from your figures</span></div>
+    <p class="muted">Choose a stock above and we’ll fill in available annual figures and calculate the ratios. You can edit the figures or enter your own if statements aren’t covered by the data plan.</p>
     <div class="form-grid three">
       <label>Revenue (current period)<input id="revenue" type="number" min="0" step="any" placeholder="e.g. 1000"></label>
       <label>Operating expenses<input id="expenses" type="number" min="0" step="any" placeholder="e.g. 760"></label>
@@ -75,8 +75,8 @@
     </div>
     <div class="actions"><button id="scanBtn" class="primary">Analyze entered figures</button><button id="clearBtn" class="secondary">Clear figures</button></div>
     <div id="ratioCards" class="metrics"></div>
-    <div id="findings" class="findings"><p class="muted">Add your figures above, then choose Analyze entered figures.</p></div>
-    <p id="manualSource" class="notice">Source status: figures have not been entered. Any manual figures remain unverified until you check the cited filing.</p>
+    <div id="findings" class="findings"><p class="muted">Ratios will appear here after the company’s financial statements load.</p></div>
+    <p id="manualSource" class="notice">Select a stock above to load its financial figures automatically.</p>
   </section>
 
   <section class="panel">
@@ -94,7 +94,7 @@
     <div class="section-title"><div><div class="eyebrow">Scenarios</div><h2>What if things change?</h2></div><span class="tag">Illustrative only</span></div>
     <p class="muted">Adjust growth and profit margins to compare three possible outcomes. These are your assumptions, not forecasts.</p>
     <div class="form-grid" style="margin-bottom: 14px;">
-      <label>Annual Revenue ($)
+      <label>Annual revenue (statement currency)
         <input id="scenarioRevenue" type="number" min="0" step="any" placeholder="e.g. 100000000 (auto-filled from loaded stock or scanner)">
       </label>
     </div>
