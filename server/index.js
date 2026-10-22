@@ -490,17 +490,12 @@ app.post("/api/company-analysis", requireAuth, limitAiRequests, async (req, res)
 
   if (symbol) {
     try {
-      const response = await fetch(`http://127.0.0.1:${PORT}/api/fundamentals?symbol=${encodeURIComponent(symbol)}`);
-      const data = await response.json().catch(() => ({}));
-      if (response.ok && data.statements) {
-        providerContext = JSON.stringify(summarizeStatements(data.statements));
-        dataNote = "Selected fields from up to two annual and two quarterly periods per statement are supplied where available. Missing fields are null, not zero. Respect each statement's availability; compare matching periods and currencies only.";
       const data = await getFundamentals(symbol);
       if (data.statements) {
-        providerContext = JSON.stringify(data.statements).slice(0, 12000);
+        providerContext = JSON.stringify(summarizeStatements(data.statements));
         dataNote = data.isDemo
           ? "Demo statement figures were supplied for illustrative purposes."
-          : "Live financial statement data was retrieved from the market data provider.";
+          : "Selected fields from up to two annual and two quarterly periods per statement are supplied where available. Missing fields are null, not zero. Respect each statement's availability; compare matching periods and currencies only.";
       } else {
         dataNote = String(data.error || "Financial statements were unavailable.");
       }
