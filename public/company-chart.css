@@ -11,3 +11,6 @@
 /* Open chart surface, continuous with the surrounding page. */
 .company-price-section, #companyPriceChart, #companyPriceChart .tradingview-widget-container { background:transparent!important; border:0!important; box-shadow:none!important; }
 #companyPriceChart iframe { background:transparent; color-scheme:dark; }
+
+/* Composite the provider's dark canvas against the moving page backdrop. */
+.company-price-section { mix-blend-mode:screen; }
