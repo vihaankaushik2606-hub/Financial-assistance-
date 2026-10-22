@@ -107,39 +107,28 @@
   .report-preview .preview-chart { animation:none;transform:none; }
 }
 
-/* Keep the complete example compact and readable on a phone screen. */
+
+/* Large floating content that fits horizontally, without compressing its height. */
 @media(max-width:700px) {
-  .report-preview {
-    width:100%;min-width:0;min-height:0;
-    padding-block:8px;animation:none;scale:1;
-  }
-  .report-preview .preview-top { padding:8px 0;gap:8px; }
-  .report-preview .preview-title { padding:10px 0 0; }
+  .report-preview { width:100%;min-width:0;max-width:none; }
   .report-preview .preview-title h2 {
-    font-size:clamp(27px,7.4vw,36px);
-    line-height:1.15;margin:8px 0 14px;
-    overflow-wrap:normal;text-wrap:balance;
-  }
-  .report-preview .chart-legend {
-    margin:0;gap:14px;flex-wrap:wrap;font-size:11px;
+    font-size:clamp(36px,9.5vw,52px);
+    width:89%;line-height:1.15;
+    margin:22px auto 32px;text-wrap:balance;
   }
   .report-preview .preview-chart {
-    width:100%;max-width:100%;
-    height:clamp(110px,22svh,185px);
-    margin:14px 0;
+    width:100%;max-width:100%;height:auto;
+    margin:30px 0 36px;
   }
-  .report-preview .research-prompt {
-    margin:8px 0;padding:8px 0;gap:12px;
-  }
+  .report-preview .research-prompt { margin:18px 0;padding:14px 8px; }
   .report-preview .research-prompt>div { min-width:0; }
-  .report-preview .research-prompt b { font-size:13px; }
-  .report-preview .research-prompt p {
-    font-size:13px;line-height:1.5;margin:6px 0 0;
-  }
-  .report-preview .preview-bottom {
-    padding:10px 0;font-size:9px;gap:12px;
-  }
-  .report-preview :is(p,.overline,.preview-top,.chart-legend,.preview-bottom) {
-    animation:none;scale:1;
+  .report-preview .research-prompt b { font-size:16px; }
+  .report-preview .research-prompt p { font-size:16px;line-height:1.7; }
+}
+@supports(animation-timeline:view()) {
+  .report-preview .preview-title h2 {
+    animation:text-scroll-pop 1ms linear both;
+    animation-timeline:view(block);
+    animation-range:entry 0% exit 100%;
   }
 }
