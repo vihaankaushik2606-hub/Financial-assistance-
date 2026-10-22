@@ -19,6 +19,24 @@
 </header>
 <main id="main">
 <section class="hero wrap">
+  <div class="market-flow-backdrop" aria-hidden="true">
+    <svg viewBox="0 0 1200 520" preserveAspectRatio="none" focusable="false">
+      <defs>
+        <linearGradient id="flowMint" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#c5edbb" stop-opacity=".05"/><stop offset="50%" stop-color="#c5edbb" stop-opacity=".75"/><stop offset="100%" stop-color="#c5edbb" stop-opacity=".08"/></linearGradient>
+        <linearGradient id="flowGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#d6b88b" stop-opacity=".06"/><stop offset="50%" stop-color="#d6b88b" stop-opacity=".7"/><stop offset="100%" stop-color="#d6b88b" stop-opacity=".08"/></linearGradient>
+      </defs>
+      <g class="flow-grid" stroke="#d6eee1" stroke-opacity=".09">
+        <path d="M0 90H1200M0 170H1200M0 350H1200M0 430H1200"/>
+        <path d="M300 0V520M600 0V520M900 0V520"/>
+      </g>
+      <path class="flow-trace flow-trace-left" d="M155 -30 C95 25 225 65 150 120 S95 205 160 260 S220 345 145 400 S105 470 160 550" fill="none" stroke="url(#flowMint)" stroke-width="3"/>
+      <path class="flow-trace flow-trace-right" d="M1030 -30 C1110 30 955 70 1035 125 S1100 205 1025 260 S955 345 1040 405 S1090 470 1020 550" fill="none" stroke="url(#flowGold)" stroke-width="3"/>
+      <path class="flow-center-line" d="M0 260H1200" fill="none" stroke="#c5edbb" stroke-width="1.4" stroke-opacity=".65"/>
+      <path class="flow-center-glow" d="M0 260H1200" fill="none" stroke="#c5edbb" stroke-width="7" stroke-opacity=".12"/>
+      <circle class="flow-pulse flow-pulse-left" cx="160" cy="260" r="5" fill="#c5edbb"/>
+      <circle class="flow-pulse flow-pulse-right" cx="1025" cy="260" r="5" fill="#d6b88b"/>
+    </svg>
+  </div>
   <div class="hero-copy"><p class="eyebrow"><span class="live-dot"></span> A place to research stocks</p>
     <h1>Get to know<br>the <em>company.</em></h1>
     <p class="hero-description">Look up a stock, check the numbers, and work through your own assumptions. Start with a company you’re curious about.</p>
