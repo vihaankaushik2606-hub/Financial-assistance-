@@ -203,9 +203,11 @@ select,
   }
 
   @keyframes text-scroll-pop {
-    0% { scale: .82; }
-    50% { scale: 1.12; }
-    100% { scale: .82; }
+    0% { opacity: 0; translate: 64px 24px; scale: .94; }
+    20% { opacity: 1; translate: 0 0; scale: 1; }
+    50% { opacity: 1; translate: 0 0; scale: 1.08; }
+    75% { opacity: 1; translate: 0 0; scale: 1; }
+    100% { opacity: 0; translate: -96px -24px; scale: .96; }
   }
 }
 
@@ -250,3 +252,8 @@ input::placeholder,textarea::placeholder { color:#ad98c0; }
 .quick-nav { backdrop-filter:none; }
 .site-header .profile-link,.quick-nav .profile-link { background:transparent!important;border:0!important; }
 :is(a,button,input,textarea,select,summary):focus-visible { outline:2px solid #d5b4ff;outline-offset:4px; }
+
+/* Keep focused text readable while navigating by keyboard. */
+body :is(label,summary):focus-within { opacity:1!important;translate:none!important; }
+@media(prefers-reduced-motion:reduce){body :is(h1,h2,h3,h4,h5,h6,p,li,label,legend,blockquote,figcaption,dt,dd,th,td,summary,.eyebrow,.overline,.muted,.hero-note,.feature-number,.card-heading,.preview-top,.preview-bottom,.chart-legend,.notice,.account-benefits,.divider){opacity:1!important;translate:none!important;}}
+.reduce-motion body :is(h1,h2,h3,h4,h5,h6,p,li,label,legend,blockquote,figcaption,dt,dd,th,td,summary,.eyebrow,.overline,.muted,.hero-note,.feature-number,.card-heading,.preview-top,.preview-bottom,.chart-legend,.notice,.account-benefits,.divider){animation:none!important;opacity:1!important;translate:none!important;scale:1!important;}
