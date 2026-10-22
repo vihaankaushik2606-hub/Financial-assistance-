@@ -143,3 +143,14 @@
   .report-preview { width:100%;max-width:660px;min-width:0;margin-inline:auto; }
   .report-preview .preview-title h2 { max-width:620px;margin-inline:auto; }
 }
+
+/* Bring the profit heading above the lower yellow background wave on laptops. */
+@media(min-width:701px) {
+  .hero { padding-top:44px;gap:24px; }
+  .hero-copy h1 { margin-block:16px; }
+  .hero-copy .hero-actions { margin-top:20px; }
+  .hero-copy .hero-note { margin-top:12px; }
+  .report-preview .preview-top { padding-block:8px; }
+  .report-preview .preview-title { padding-top:10px; }
+  .report-preview .preview-title h2 { margin-block:10px 20px; }
+}
