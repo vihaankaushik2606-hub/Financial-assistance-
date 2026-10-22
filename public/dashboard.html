@@ -12,19 +12,19 @@
 <body>
 <nav class="quick-nav" aria-label="Account navigation"><a href="/">Home</a><a href="/dashboard.html">Research</a><a href="/account.html">Account</a><a href="/account.html#settings">Settings</a></nav>
 <header class="topbar">
-  <a class="brand" href="/"><span class="logo">F</span><span><b>AI Finance Lab</b><small>Company Truth Report</small></span></a>
-  <div class="status"><span class="dot"></span><span id="apiStatus">Checking backend…</span></div>
+  <a class="brand" href="/"><span class="logo">F</span><span><b>AI Finance Lab</b><small>Your research workspace</small></span></a>
+  <div class="status"><span class="dot"></span><span id="apiStatus">Connecting…</span></div>
 </header>
 <main class="container">
   <section class="hero">
-    <div class="eyebrow">Research-first financial intelligence</div>
-    <h1>Look beyond the headline numbers.</h1>
-    <p>Explore financial performance, inspect potential warning signs, and test transparent scenarios. Every number should have a source and reporting period.</p>
+    <div class="eyebrow">Your workspace</div>
+    <h1>What are you researching?</h1>
+    <p>Search for a stock below, or bring your own figures to the calculators.</p>
   </section>
 
 
   <section class="panel">
-    <div class="section-title"><div><div class="eyebrow">01 / Company</div><h2>Explore a stock</h2></div><span class="tag">Live data is provider-dependent</span></div>
+    <div class="section-title"><div><div class="eyebrow">Stock lookup</div><h2>Explore a stock</h2></div><span class="tag">Coverage varies by stock</span></div>
     <div class="form-grid">
       <label>Stock ticker
         <input id="symbol" maxlength="24" placeholder="e.g. AAPL, MSFT, NVDA or IBM">
@@ -36,9 +36,9 @@
     </div>
     <div class="actions">
       <button id="loadBtn" class="primary">Get stock details</button>
-      <button id="fundamentalsBtn" class="secondary">Fetch financial statements</button>
+      <button id="fundamentalsBtn" class="secondary">View financial statements</button>
     </div>
-    <p id="message" class="notice" role="status">Waiting for request. Market data may be delayed and some symbols/endpoints may not be covered.</p>
+    <p id="message" class="notice" role="status">Enter a ticker to get started. Quotes may be delayed; some stocks need a paid data plan.</p>
     <div id="marketCards" class="metrics"></div>
     <div id="fundamentalsSection" hidden>
       <h3>Financial statements</h3>
@@ -49,19 +49,19 @@
 
 
   <section class="panel">
-    <div class="section-title"><div><div class="eyebrow">02 / Automated research</div><h2>Automatic company analysis</h2></div><span class="tag">AI-assisted · check sources</span></div>
+    <div class="section-title"><div><div class="eyebrow">Company overview</div><h2>Get a company overview</h2></div><span class="tag">AI-assisted · check sources</span></div>
     <p class="muted">Enter a stock ticker (for example, IBM) or a company name, then press Enter or leave the field. AI will summarize available information and clearly flag missing financial data. Company names are not automatically converted to tickers yet.</p>
     <label>Company name or stock ticker
       <input id="autoCompany" maxlength="120" placeholder="e.g. IBM or Microsoft">
     </label>
     <div class="actions"><button id="autoAnalyzeBtn" class="primary">Analyze company</button></div>
-    <p id="autoAnalysisStatus" class="notice" role="status">Ready. Analysis requires OPENAI_API_KEY configured in your environment settings. Financial statement availability depends on your data provider.</p>
+    <p id="autoAnalysisStatus" class="notice" role="status">Company overviews need the AI service to be enabled.</p>
     <article id="autoAnalysisOutput" class="finding" hidden></article>
   </section>
 
   <section class="panel">
-    <div class="section-title"><div><div class="eyebrow">03 / Manual analysis (optional fallback)</div><h2>Company Truth Scanner</h2></div><span class="tag">Rule-based · not AI</span></div>
-    <p class="muted">Enter figures from a reliable filing. Use the same currency and matching reporting periods. The app will calculate ratios and identify patterns to investigate, not assert fraud or predict outcomes.</p>
+    <div class="section-title"><div><div class="eyebrow">Your figures</div><h2>Check the numbers</h2></div><span class="tag">Calculated from your figures</span></div>
+    <p class="muted">Use figures from the same reporting period and currency. We’ll calculate the ratios and suggest what to check next.</p>
     <div class="form-grid three">
       <label>Revenue (current period)<input id="revenue" type="number" min="0" step="any" placeholder="e.g. 1000"></label>
       <label>Operating expenses<input id="expenses" type="number" min="0" step="any" placeholder="e.g. 760"></label>
@@ -75,24 +75,24 @@
     </div>
     <div class="actions"><button id="scanBtn" class="primary">Analyze entered figures</button><button id="clearBtn" class="secondary">Clear figures</button></div>
     <div id="ratioCards" class="metrics"></div>
-    <div id="findings" class="findings"><p class="muted">Enter figures and run the scanner to see calculated ratios and research prompts.</p></div>
+    <div id="findings" class="findings"><p class="muted">Add your figures above, then choose Analyze entered figures.</p></div>
     <p id="manualSource" class="notice">Source status: figures have not been entered. Any manual figures remain unverified until you check the cited filing.</p>
   </section>
 
   <section class="panel">
-    <div class="section-title"><div><div class="eyebrow">04 / AI assistant</div><h2>Ask the AI Research Assistant</h2></div><span class="tag">AI-assisted · verify answers</span></div>
+    <div class="section-title"><div><div class="eyebrow">Questions</div><h2>Need help with a number?</h2></div><span class="tag">AI-assisted · verify answers</span></div>
     <p class="muted">Ask for explanations of financial terms, ratios, or warning patterns. You can optionally include your scanner results. Do not enter passwords, API keys, or private information.</p>
     <label>Your finance question
       <textarea id="aiQuestion" rows="3" maxlength="2000" placeholder="e.g. Explain why operating cash flow can be lower than net profit."></textarea>
     </label>
-    <div class="actions"><button id="aiAskBtn" class="primary">Ask AI Assistant</button><button id="aiContextBtn" class="secondary">Attach Scanner Figures</button></div>
-    <p id="aiStatus" class="notice" role="status">AI assistant is ready. (Add OPENAI_API_KEY in .env for live AI responses).</p>
+    <div class="actions"><button id="aiAskBtn" class="primary">Ask AI Assistant</button><button id="aiContextBtn" class="secondary">Include my figures</button></div>
+    <p id="aiStatus" class="notice" role="status">The assistant is available once the AI service is enabled.</p>
     <article id="aiAnswer" class="finding" hidden></article>
   </section>
 
   <section class="panel">
-    <div class="section-title"><div><div class="eyebrow">05 / Scenario lab</div><h2>Test assumptions, not predictions</h2></div><span class="tag">Illustrative only</span></div>
-    <p class="muted">Scenarios calculate forward projections from your revenue and assumed growth/margin. They help visualize possibilities, not guarantee target prices.</p>
+    <div class="section-title"><div><div class="eyebrow">Scenarios</div><h2>What if things change?</h2></div><span class="tag">Illustrative only</span></div>
+    <p class="muted">Adjust growth and profit margins to compare three possible outcomes. These are your assumptions, not forecasts.</p>
     <div class="form-grid" style="margin-bottom: 14px;">
       <label>Annual Revenue ($)
         <input id="scenarioRevenue" type="number" min="0" step="any" placeholder="e.g. 100000000 (auto-filled from loaded stock or scanner)">

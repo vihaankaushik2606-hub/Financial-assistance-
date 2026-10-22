@@ -1,11 +1,12 @@
 
-/* Purple river theme shared by every page. */
+/* Purple market theme shared by every page. */
 :root{--bg:#050307;--panel:#140d20;--panel2:#21132f;--text:#f7f0ff;--muted:#beaecf;--line:#513264;--cyan:#c49aff;--mint:#c49aff;--ink:#160a24}
 html{background:#050307}
 body{background:#050307;color:var(--text);isolation:isolate;min-height:100vh}
-body::before,body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;border-radius:0;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20480%201200%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22river%22%3E%3Cstop%20stop-color%3D%22%23401075%22%2F%3E%3Cstop%20offset%3D%22.45%22%20stop-color%3D%22%23a339ef%22%2F%3E%3Cstop%20offset%3D%22.65%22%20stop-color%3D%22%23d898ff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23531185%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cg%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M240%200%20C440%20100%20440%20200%20240%20300%20S40%20500%20240%20600%20S440%20800%20240%20900%20S40%201100%20240%201200%22%20stroke%3D%22%2359099a%22%20stroke-width%3D%22150%22%20opacity%3D%22.25%22%2F%3E%3Cpath%20d%3D%22M240%200%20C440%20100%20440%20200%20240%20300%20S40%20500%20240%20600%20S440%20800%20240%20900%20S40%201100%20240%201200%22%20stroke%3D%22url(%23river)%22%20stroke-width%3D%2286%22%20opacity%3D%22.8%22%2F%3E%3Cpath%20d%3D%22M240%200%20C440%20100%20440%20200%20240%20300%20S40%20500%20240%20600%20S440%20800%20240%20900%20S40%201100%20240%201200%22%20stroke%3D%22%23b05bff%22%20stroke-width%3D%2258%22%20opacity%3D%22.45%22%2F%3E%3Cpath%20d%3D%22M240%200%20C440%20100%20440%20200%20240%20300%20S40%20500%20240%20600%20S440%20800%20240%20900%20S40%201100%20240%201200%22%20stroke%3D%22%23e7b9ff%22%20stroke-width%3D%222%22%20transform%3D%22translate(-24%200)%22%20opacity%3D%22.8%22%2F%3E%3Cpath%20d%3D%22M240%200%20C440%20100%20440%20200%20240%20300%20S40%20500%20240%20600%20S440%20800%20240%20900%20S40%201100%20240%201200%22%20stroke%3D%22%23c889ff%22%20stroke-width%3D%223%22%20transform%3D%22translate(18%200)%22%20opacity%3D%22.9%22%2F%3E%3Cpath%20d%3D%22M240%200%20C440%20100%20440%20200%20240%20300%20S40%20500%20240%20600%20S440%20800%20240%20900%20S40%201100%20240%201200%22%20stroke%3D%22%23e4aaff%22%20stroke-width%3D%221%22%20transform%3D%22translate(33%200)%22%20opacity%3D%22.6%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");background-repeat:repeat-y;background-size:100% 1200px;filter:none;transform:none;will-change:background-position;animation:river-current 14s linear infinite}
-body::after{opacity:.32;background-size:130% 1200px;background-position-x:70%;animation:river-current 21s linear infinite reverse;filter:blur(14px)}
-@keyframes river-current{from{background-position-y:0}to{background-position-y:1200px}}
+/* Decorative market pulse; not live price data. */
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221200%22%20height%3D%22520%22%20viewBox%3D%220%200%201200%20520%22%3E%3Cdefs%3E%3Cpattern%20id%3D%22g%22%20width%3D%2260%22%20height%3D%2265%22%20patternUnits%3D%22userSpaceOnUse%22%3E%3Cpath%20d%3D%22M60%200H0V65%22%20fill%3D%22none%22%20stroke%3D%22%23b980ff%22%20stroke-opacity%3D%22.09%22%2F%3E%3C%2Fpattern%3E%3C%2Fdefs%3E%3Crect%20width%3D%221200%22%20height%3D%22520%22%20fill%3D%22url(%23g)%22%2F%3E%3Cpath%20d%3D%22M0%20270%20L65%20270%2090%20255%20115%20280%20145%20265%20180%20265%20205%20230%20225%20285%20245%20120%20270%20350%20295%20245%20330%20260%20370%20220%20410%20240%20450%20190%20490%20210%20530%20170%20560%20205%20595%20190%20625%20250%20660%20235%20700%20280%20740%20260%20775%20295%20805%20270%20840%20270%20865%20245%20890%20280%20920%20155%20945%20320%20970%20245%201010%20260%201050%20225%201090%20245%201130%20270%201200%20270%22%20fill%3D%22none%22%20stroke%3D%22%239e42ef%22%20stroke-width%3D%2212%22%20opacity%3D%22.10%22%2F%3E%3Cpath%20d%3D%22M0%20270%20L65%20270%2090%20255%20115%20280%20145%20265%20180%20265%20205%20230%20225%20285%20245%20120%20270%20350%20295%20245%20330%20260%20370%20220%20410%20240%20450%20190%20490%20210%20530%20170%20560%20205%20595%20190%20625%20250%20660%20235%20700%20280%20740%20260%20775%20295%20805%20270%20840%20270%20865%20245%20890%20280%20920%20155%20945%20320%20970%20245%201010%20260%201050%20225%201090%20245%201130%20270%201200%20270%22%20fill%3D%22none%22%20stroke%3D%22%23c68aff%22%20stroke-width%3D%222%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M0%20270%20L65%20270%2090%20255%20115%20280%20145%20265%20180%20265%20205%20230%20225%20285%20245%20120%20270%20350%20295%20245%20330%20260%20370%20220%20410%20240%20450%20190%20490%20210%20530%20170%20560%20205%20595%20190%20625%20250%20660%20235%20700%20280%20740%20260%20775%20295%20805%20270%20840%20270%20865%20245%20890%20280%20920%20155%20945%20320%20970%20245%201010%20260%201050%20225%201090%20245%201130%20270%201200%20270%22%20transform%3D%22translate(0%20170)%22%20fill%3D%22none%22%20stroke%3D%22%238c45c8%22%20stroke-width%3D%221%22%20opacity%3D%22.2%22%2F%3E%3C%2Fsvg%3E");background-repeat:repeat;background-size:1200px 520px;opacity:.65;animation:market-pulse 24s linear infinite}
+body::after{content:none}
+@keyframes market-pulse{from{background-position:0 0}to{background-position:-1200px 0}}
 .quick-nav{background:#09050fed;border-color:#57326f;backdrop-filter:blur(16px)}
 .quick-nav a{color:#eee1ff}
 .quick-nav a:hover,.quick-nav a[aria-current="page"]{background:#ba85f3;color:#140820}
@@ -27,6 +28,20 @@ input:focus,textarea:focus{outline-color:#bd85ff88;border-color:#c99fff}
 .divider{color:#beaecf}
 .divider::before,.divider::after{background:#513264}
 a:focus-visible,button:focus-visible,input:focus-visible{outline-color:#d5b4ff}
-@media(max-width:700px){body::before{background-size:145% 1200px;background-position-x:center}body::after{background-size:180% 1200px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric .value{font-size:19px}}
+@media(max-width:700px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric .value{font-size:19px}}
 @media(prefers-reduced-motion:reduce){body::before,body::after{animation:none}}
 .reduce-motion body::before,.reduce-motion body::after{animation:none!important}
+
+/* A quieter layout with simpler surfaces and clearer hierarchy. */
+.panel,.account-card,.report-preview{border-radius:12px;background:#100b17e0;border-color:#382744;box-shadow:none}
+.primary,.mint{background:#c49aff}
+.hero h1{letter-spacing:-.035em}
+.eyebrow{letter-spacing:.08em;text-transform:none}
+.panel .tag{border:0;padding-left:0}
+.notice{background:#0c0811;border-color:#30233d}
+.report-preview{transform:none}
+.metric{border-radius:8px;background:#191020}
+.feature-icon{font-size:28px}
+.features h3{font-weight:600}
+.preview-chart path[stroke="#b9e9bf"]{stroke:#c49aff}
+@media(max-width:700px){.container{padding-inline:18px}.panel{padding:20px 16px}.hero h1{font-size:36px}.hero p{font-size:15px}.section-title h2{font-size:23px}}
