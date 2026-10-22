@@ -277,13 +277,14 @@ $("fundamentalsBtn")?.addEventListener("click", async () => {
 
 function resetStatementAnalysis(message) {
   if ($("statementAnalysisStatus")) $("statementAnalysisStatus").textContent = message;
-  ["statementAnalysisMetrics", "statementAnalysisFindings"].forEach(id => { if ($(id)) $(id).innerHTML = ""; });
+  ["statementAnalysisMetrics", "statementAnalysisFindings", "statementAnalysisCharts"].forEach(id => { if ($(id)) $(id).innerHTML = ""; });
   if ($("statementAnalysisGaps")) { $("statementAnalysisGaps").textContent = ""; $("statementAnalysisGaps").hidden = true; }
 }
 
 function renderFinancialAnalysis(data) {
   if (!window.StatementAnalysis || !$("statementAnalysisStatus")) return;
   const report = window.StatementAnalysis.analyze(data);
+  window.AnalysisCharts?.render(data, $("statementAnalysisCharts"));
   const mode = report.isDemo ? "Illustrative sample data — not reported company figures" : "Financial Modeling Prep · annual statements";
   $("statementAnalysisStatus").textContent = report.date
     ? `${report.symbol} · year ended ${report.date} · ${report.currency} · ${mode}. Verify against the annual report.`
