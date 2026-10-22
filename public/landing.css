@@ -58,3 +58,27 @@
 .report-preview .preview-title h2 { margin-inline:auto; }
 .report-preview .preview-title .orbit { display:none; }
 .report-preview .chart-legend { justify-content:center; }
+
+/* Larger, wider floating example headline. */
+.report-preview .preview-title { padding:30px 8px 0; }
+.report-preview .preview-title h2 {
+  width:100%;max-width:none;
+  font-size:clamp(32px,4vw,56px);
+  line-height:1.16;letter-spacing:-.035em;
+  margin:18px auto 28px;
+  animation:profit-heading-float 6s ease-in-out infinite;
+  animation-timeline:auto;animation-range:normal;
+  scale:1;transform-origin:center;
+}
+@keyframes profit-heading-float {
+  0%,100% { transform:translateY(0); }
+  50% { transform:translateY(-8px); }
+}
+@media(max-width:700px) {
+  .report-preview { max-width:none; }
+  .report-preview .preview-title { padding-inline:0; }
+  .report-preview .preview-title h2 { font-size:clamp(32px,8.5vw,48px); }
+}
+@media(prefers-reduced-motion:reduce) {
+  .report-preview .preview-title h2 { animation:none;transform:none; }
+}
