@@ -90,6 +90,7 @@
     <p class="muted">See how the company earns profit, manages debt and turns earnings into cash. Load a stock above to generate an explanation from its available annual statements.</p>
     <p id="statementAnalysisStatus" class="notice" role="status">Select a stock to see its financial analysis.</p>
     <div id="statementAnalysisMetrics" class="metrics"></div>
+    <div id="statementAnalysisCharts" aria-label="Financial trend charts"></div>
     <div id="statementAnalysisFindings" class="statement-analysis-grid"></div>
     <p id="statementAnalysisGaps" class="notice" hidden></p>
     <details class="analysis-method"><summary>How this analysis works</summary><p class="muted">Calculations use annual statements for one company, reporting date and currency. Growth compares the closest available prior annual period, 300–430 days earlier. Missing values stay missing. Explanations follow the figures and do not use AI. Ratios need industry context; read the annual report notes before drawing conclusions.</p></details>
@@ -163,7 +164,9 @@
 <script src="/statement-analysis.js" defer></script>
 <link rel="stylesheet" href="/company-chart.css?v=see-through-3">
 <script src="/company-chart.js?v=floating-2" defer></script>
-<script src="/app.js?v=company-chart-1" defer></script>
+<link rel="stylesheet" href="/analysis-charts.css?v=1">
+<script src="/analysis-charts.js?v=1" defer></script>
+<script src="/app.js?v=analysis-charts-2" defer></script>
 <script src="/navigation.js?v=direction-swipe-6" defer></script>
 <p style="text-align:center;padding:20px"><a href="/install.html" style="color:#d6b3ff">Install AI Finance Lab ↗</a></p>
 </body>
