@@ -10,13 +10,13 @@ const response = (data, ok = true) => ({ ok, json: async () => data });
 function frontend(fetchRequest = async () => response({})) {
   const nodes = new Map();
   function node(id) {
-    if (!nodes.has(id)) nodes.set(id, { value: '', dataset: {}, style: {}, innerHTML: '', textContent: '', hidden: false, listeners: {}, addEventListener(event, fn) { this.listeners[event] = fn; } });
+    if (!nodes.has(id)) nodes.set(id, { value: '', dataset: {}, style: {}, innerHTML: '', textContent: '', hidden: false, listeners: {}, querySelectorAll() { return []; }, addEventListener(event, fn) { this.listeners[event] = fn; } });
     return nodes.get(id);
   }
   const context = vm.createContext({ document: { getElementById: node, querySelector: node }, window: {},
     fetch: url => url === '/api/config' ? Promise.resolve(response({ authConfigured: false })) : url === '/api/health' ? Promise.resolve(response({})) : fetchRequest(url),
     setTimeout, clearTimeout, console });
-  vm.runInContext(source('public/app.js'), context);
+  vm.runInContext(source('public/app.js').replace(/\n\}\)\(\);\s*$/, '\n;globalThis.testApp = { calcRatios };\n})();'), context);
   return { node, context };
 }
 
@@ -49,25 +49,24 @@ test('budget blocks excess calls and renews at the window boundary', () => {
   assert.equal(take(), true);
 });
 
-test('a quote remains visible if daily history fails; zero change and volume survive', async () => {
-  const { node } = frontend(async url => url.startsWith('/api/quote') ? response({ symbol: 'IBM', fetchedAt: '2026-01-01', quote: { '05. price': 123, '09. change': 0, '06. volume': 0 } }) : response({ error: 'History not included in plan' }, false));
+test('quote preserves zero change and volume when linked statements fail', async () => {
+  const { node } = frontend(async url => url.startsWith('/api/quote') ? response({ symbol: 'IBM', quote: { raw: { symbol: 'IBM', price: 123, change: 0, volume: 0 } } }) : response({ error: 'Statements not included in plan' }, false));
   node('symbol').value = 'IBM';
   await node('loadBtn').listeners.click();
   assert.match(node('marketCards').innerHTML, /123/);
-  assert.match(node('marketCards').innerHTML, /Change<\/div><div class="value">0/);
-  assert.match(node('marketCards').innerHTML, /Volume<\/div><div class="value">0/);
-  assert.match(node('message').textContent, /History not included/);
-  assert.equal(node('historySection').hidden, true);
+  assert.match(node('marketCards').innerHTML, /Today&#39;s Change<\/div>\s*<div class="value">0/);
+  assert.match(node('marketCards').innerHTML, /Volume<\/div>\s*<div class="value">0/);
+  assert.match(node('manualSource').textContent, /Statements not included/);
   assert.equal(node('loadBtn').disabled, false);
 });
 
-test('daily history remains visible if quote fails', async () => {
-  const { node } = frontend(async url => url.startsWith('/api/quote') ? response({ error: 'No quote' }, false) : response({ rows: [{ date: '2026-01-01', close: 12 }] }));
+test('financial statements still populate ratios when quote fails', async () => {
+  const { node } = frontend(async url => url.startsWith('/api/quote') ? response({ error: 'No quote' }, false) : response({ statements: { incomeStatement: { available: true, annualReports: [{ symbol: 'IBM', date: '2025-12-31', reportedCurrency: 'USD', revenue: 100, netIncome: 10 }] } } }));
   node('symbol').value = 'IBM';
   await node('loadBtn').listeners.click();
-  assert.equal(node('historySection').hidden, false);
-  assert.match(node('historyRows').innerHTML, /2026-01-01/);
-  assert.match(node('message').textContent, /Quote unavailable/);
+  assert.equal(node('revenue').value, '100');
+  assert.match(node('ratioCards').innerHTML, /10%/);
+  assert.match(node('message').textContent, /Could not load quote/);
 });
 
 test('profit changes describe improvement or deterioration for loss-making companies', () => {
@@ -75,11 +74,11 @@ test('profit changes describe improvement or deterioration for loss-making compa
   for (const [prior, current, expected] of [[-100, -50, '50%'], [-100, -150, '-50%'], [-100, 50, '150%'], [100, 150, '50%']]) {
     node('priorProfit').value = String(prior);
     node('profit').value = String(current);
-    vm.runInContext('calcRatios()', context);
+    context.testApp.calcRatios();
     assert.ok(node('ratioCards').innerHTML.includes(`class="value">${expected}</div>`));
   }
   node('priorProfit').value = '0';
-  vm.runInContext('calcRatios()', context);
+  context.testApp.calcRatios();
   assert.doesNotMatch(node('ratioCards').innerHTML, /Profit change/);
 });
 
@@ -101,7 +100,7 @@ test('analysis ignores concurrent Enter/click submissions and permits retry afte
   assert.equal(calls, 2);
   finish(response({ answer: 'Analysis complete' }));
   await retry;
-  assert.equal(node('autoAnalysisOutput').textContent, 'Analysis complete');
+  assert.match(node('autoAnalysisOutput').innerHTML, /Analysis complete/);
 });
 
 test('clearing scanner figures also clears attached AI context and old scenarios', () => {
@@ -119,7 +118,7 @@ test('upstream budget is enforced while cached and concurrent requests share one
   const express = Object.assign(() => app, { json() {}, static() {} });
   let calls = 0;
   const context = vm.createContext({
-    require: name => name === 'express' ? express : name === 'dotenv' ? { config() {} } : name === './research' ? require('../server/research') : require(name),
+    require: name => name === 'express' ? express : name === 'dotenv' ? { config() {} } : name.startsWith('./') ? require('../server/' + name.slice(2)) : require(name),
     module: { exports: {} }, __dirname: path.join(__dirname, '../server'),
     process: { env: { FMP_API_KEY: 'test-only', FMP_DAILY_REQUEST_LIMIT: '1' } }, URL, console,
     fetch: async () => { calls++; return response([{ symbol: 'IBM', price: 100 }]); }
@@ -132,3 +131,4 @@ test('upstream budget is enforced while cached and concurrent requests share one
   await assert.rejects(vm.runInContext('fmpRequest("quote", { symbol: "MSFT" })', context), error => error.status === 429);
   assert.equal(calls, 1);
 });
+

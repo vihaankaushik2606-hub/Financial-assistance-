@@ -53,7 +53,7 @@ async function checkHealth() {
   try {
     const h = await api("/api/health");
     const fmpText = h.providerConfigured ? "Live FMP" : "Demo mode";
-    const aiText = h.aiConfigured ? "AI ready" : "Key needed in .env";
+    const aiText = h.aiConfigured ? "AI ready" : "AI setup pending";
     statusEl.textContent = `Online · ${fmpText} · ${aiText}`;
     if (dotEl) {
       dotEl.style.background = h.providerConfigured && h.aiConfigured ? "var(--green)" : "var(--amber)";
@@ -115,7 +115,7 @@ $("loadBtn")?.addEventListener("click", async () => {
         metric("Current Price", x.price !== undefined ? `$${quoteNumber(x.price)}` : "—", x.currency || "USD"),
         metric("Today's Change", `${quoteNumber(x.change)} (${changePct})`, x.change >= 0 ? "Gain" : "Loss"),
         metric("Market Cap", mktCap, "Valuation"),
-        metric("Volume", x.volume ? Number(x.volume).toLocaleString() : "—", "Shares Traded"),
+        metric("Volume", quoteNumber(x.volume, 0), "Shares Traded"),
         metric("Day Range", `$${quoteNumber(x.dayLow)} – $${quoteNumber(x.dayHigh)}`, "Low – High"),
         metric("52-Week Range", `$${quoteNumber(x.yearLow)} – $${quoteNumber(x.yearHigh)}`, "52W Range"),
         metric("50-Day Moving Avg", quoteNumber(x.priceAvg50), "Short-term trend"),
@@ -417,7 +417,7 @@ function calcRatios(automatic = false) {
   $("findings").innerHTML = findings.map(([kind,title,body])=>`<article class="finding ${kind}"><b>${esc(title)}</b><p>${esc(body)}</p></article>`).join("");
   const period=$("period").value.trim();
   $("manualSource").textContent = `Source status: user-entered figures, not independently verified. ${period ? `Provided reporting period/source: ${period}.` : "Add a reporting period and source URL/reference before sharing this report."} Ratios are only comparable when definitions, currency, and periods match.`;
-  if (!automatic && currentSession) savePrivateHistory("manual-analysis", "Manual company truth scan", `${fieldsForHistory() }\n\n${$("findings").innerText}`);
+  if (!automatic && typeof savePrivateHistory === "function") savePrivateHistory("manual-analysis", "Manual company truth scan", `${fieldsForHistory() }\n\n${$("findings").innerText}`);
 }
 
 $("scanBtn")?.addEventListener("click", () => calcRatios(false));
@@ -497,6 +497,7 @@ $("aiAskBtn")?.addEventListener("click", async () => {
   }
 });
 $("clearBtn")?.addEventListener("click", () => {
+  resetLinkedNumbers();
   ["revenue", "expenses", "profit", "ocf", "debt", "cash", "priorRevenue", "priorProfit", "period"].forEach(id => {
     if ($(id)) $(id).value = "";
   });
@@ -547,3 +548,4 @@ checkHealth();
 setupQuickTickers();
 
 })();
+
