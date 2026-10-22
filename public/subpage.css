@@ -1,0 +1,60 @@
+
+/* The landing page's open floating treatment on research, account and settings. */
+.floating-subpage>.quick-nav{display:none}
+.floating-subpage::after{display:none}
+.floating-subpage .market-flow-backdrop{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;opacity:.55}
+.floating-subpage .market-flow-backdrop svg{display:block;width:100%;height:100%;overflow:visible}
+.flow-chart-line{stroke-opacity:.65;stroke-linecap:round}
+.flow-running{stroke:#d8ffd0;stroke-opacity:1;stroke-width:4;stroke-dasharray:110 890;stroke-linecap:round;animation:subpage-chart-glow 6s linear infinite;filter:drop-shadow(0 0 7px #b8ff9f)}
+.flow-running-lower{stroke:#ffe2a6;animation-duration:8s;animation-direction:reverse;filter:drop-shadow(0 0 7px #ffd88b)}
+.flow-wave{animation:subpage-wave-travel 18s linear infinite;will-change:transform}
+.flow-wave-lower{animation-duration:24s;animation-direction:reverse}
+.flow-trace{stroke-dasharray:10 14;animation:subpage-trace-flow 18s linear infinite}
+.flow-trace-right{animation-direction:reverse}
+@keyframes subpage-chart-glow{to{stroke-dashoffset:-1000}}
+@keyframes subpage-wave-travel{to{transform:translateX(-1200px)}}
+@keyframes subpage-trace-flow{to{stroke-dashoffset:-240}}
+.floating-subpage .topbar{max-width:1180px;margin:auto;padding:24px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.floating-subpage .brand{display:flex;align-items:center;gap:10px;color:var(--text);text-decoration:none;font-size:18px}
+.floating-subpage .brand .logo,.subpage-brand-mark{background:transparent;color:#c49aff;font-size:28px;width:auto;height:auto}
+.floating-subpage .brand small{display:block;font-size:11px;color:var(--muted)}
+.subpage-header-nav{display:flex;align-items:center;justify-content:flex-end;gap:18px;margin-left:auto;font-size:13px}
+.subpage-header-nav a{color:var(--text);text-decoration:none;min-height:44px;display:inline-flex;align-items:center}
+.subpage-header-nav a:hover,.subpage-header-nav a[aria-current]{color:#d6b3ff}
+.subpage-header-nav .profile-link{display:flex!important;align-items:center;justify-content:center;width:44px;height:44px;position:relative;color:#dfc5ff}
+.floating-subpage .topbar .status{width:100%;justify-content:center;font-size:12px;color:var(--muted)}
+.floating-subpage .container,.floating-subpage .wrap{width:min(760px,calc(100% - 40px));max-width:760px;margin-inline:auto;padding-inline:0}
+.floating-subpage .hero{display:block;margin-inline:auto;text-align:center;max-width:none;padding:44px 0 24px}
+.floating-subpage .hero h1{font-size:clamp(36px,5vw,56px);line-height:1.15}
+.floating-subpage .hero p{margin-inline:auto}
+.floating-subpage .panel{padding:28px 0;margin-block:36px}
+.floating-subpage .section-title{text-align:center;justify-content:center}
+.floating-subpage .section-title>div{width:100%}
+.floating-subpage .section-title h2{font-size:clamp(27px,3.4vw,36px)}
+.floating-subpage .panel>p,.floating-subpage .metrics{text-align:center}
+.floating-subpage .actions{justify-content:center}
+.floating-subpage .form-grid{gap:20px}
+.floating-subpage label{font-size:14px}
+.floating-subpage input,.floating-subpage textarea{font-size:16px;min-height:44px}
+.floating-subpage .account-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;max-width:640px}
+.floating-subpage .account-copy{text-align:center}
+.floating-subpage .account-copy>p{max-width:none!important}
+.floating-subpage .account-benefits{justify-content:center}
+.floating-subpage .account-card{padding:24px 0}
+.floating-subpage .account-card>.card-heading{justify-content:center}
+.floating-subpage .account-card>h2,.floating-subpage .account-card>p{text-align:center}
+.floating-subpage .settings-panel{padding-block:40px}
+@media(max-width:700px){
+ .floating-subpage .topbar{padding:16px 20px;gap:8px}
+ .floating-subpage .brand{font-size:16px}
+ .subpage-header-nav{gap:12px}
+ .subpage-header-nav a:not(.profile-link){font-size:12px}
+ .floating-subpage .hero{padding-top:28px}
+ .floating-subpage .panel{margin-block:24px}
+ .floating-subpage .form-grid,.floating-subpage .form-grid.three{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:480px){
+ .subpage-header-nav a[href="/account.html"]:not(.profile-link),.subpage-header-nav a[href="/account.html#settings"]{display:none}
+ .floating-subpage .brand small{display:none}
+}
+@media(prefers-reduced-motion:reduce){.floating-subpage .market-flow-backdrop *{animation:none!important}}

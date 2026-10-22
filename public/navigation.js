@@ -1,9 +1,9 @@
 (() => {
  // The landing page uses a single compact header; other pages keep quick navigation.
- if (document.body.classList.contains('landing-market-page')) {
+ if (document.body.classList.contains('landing-market-page') || document.body.classList.contains('floating-subpage')) {
   const strip = document.querySelector('.quick-nav');
   const profile = strip?.querySelector('.profile-link');
-  const header = document.querySelector('.site-header nav');
+  const header = document.querySelector('.site-header nav,.subpage-header-nav');
   if (profile && header) { header.appendChild(profile); strip.remove(); }
  }
  const box = document.getElementById('reduceMotion');
@@ -19,7 +19,7 @@
   });
  }
  function markCurrent() {
-  document.querySelectorAll('.quick-nav a').forEach(link => {
+  document.querySelectorAll('.quick-nav a,.subpage-header-nav a').forEach(link => {
    const url = new URL(link.href);
    const active = url.pathname === location.pathname && (url.hash ? url.hash === location.hash : !location.hash);
    if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
