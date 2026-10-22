@@ -65,4 +65,5 @@ $("labExport").addEventListener("click",()=>{
  if(!report)return;save();const url=URL.createObjectURL(new Blob([exportHtml()],{type:"text/html;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download=report.symbol+"-research-notebook.html";a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
 });
 $("labPrint").addEventListener("click",()=>{save();window.print();});
+const querySymbol=new URLSearchParams(location.search).get("symbol")?.toUpperCase();if(querySymbol&&/^[A-Z0-9][A-Z0-9.:-]{0,23}$/.test(querySymbol)){$("labSymbol").value=querySymbol;load();}
 })();
