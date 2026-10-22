@@ -224,3 +224,29 @@ select,
     scale: 1 !important;
   }
 }
+
+/* Floating typography: no card, divider or control boxes. */
+:is(.site-header,.site-footer,.quick-nav,.principles,.features,
+.features article,.preview-top,.preview-bottom,.research-prompt,
+.account-area,.account-card,.report-preview,.panel,.metric,.finding,
+.statement,.notice,.tag,.example-tag,.profile-details div,.history-list .finding,
+.button,button,input,textarea,select,.nav-account,.profile-link,.ticker-chip) {
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  border-radius:0!important;
+}
+:is(.button,button,.nav-account,.profile-link,.ticker-chip) {
+  color:#d6b3ff!important;
+  min-height:44px;
+}
+:is(.button,button,.nav-account,.profile-link,.ticker-chip):hover {
+  background:transparent!important;
+  color:#f2e4ff!important;
+}
+input,textarea,select { color:var(--text)!important; }
+input::placeholder,textarea::placeholder { color:#ad98c0; }
+.divider::before,.divider::after { display:none; }
+.quick-nav { backdrop-filter:none; }
+.site-header .profile-link,.quick-nav .profile-link { background:transparent!important;border:0!important; }
+:is(a,button,input,textarea,select,summary):focus-visible { outline:2px solid #d5b4ff;outline-offset:4px; }
