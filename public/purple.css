@@ -203,11 +203,11 @@ select,
   }
 
   @keyframes text-scroll-pop {
-    0%, 12% { opacity:0; translate:var(--text-entry-x, 96px) 20px; scale:.94; }
+    0%, 12% { opacity:0; translate:var(--text-entry-x, 180px) var(--text-entry-y, 100px); scale:.94; }
     35% { opacity:1; translate:0 0; scale:1; }
     50% { opacity:1; translate:0 0; scale:1.08; }
     65% { opacity:1; translate:0 0; scale:1; }
-    88%, 100% { opacity:0; translate:var(--text-exit-x, -96px) -20px; scale:.96; }
+    88%, 100% { opacity:0; translate:var(--text-exit-x, -180px) var(--text-exit-y, -100px); scale:.96; }
   }
 }
 
@@ -259,7 +259,7 @@ body :is(label,summary):focus-within { opacity:1!important;translate:none!import
 .reduce-motion body :is(h1,h2,h3,h4,h5,h6,p,li,label,legend,blockquote,figcaption,dt,dd,th,td,summary,.eyebrow,.overline,.muted,.hero-note,.feature-number,.card-heading,.preview-top,.preview-bottom,.chart-legend,.notice,.account-benefits,.divider){animation:none!important;opacity:1!important;translate:none!important;scale:1!important;}
 
 /* Returning text enters from the right when scrolling upward. */
-html.scrolling-up { --text-entry-x: -96px; --text-exit-x: 96px; }
+html.scrolling-up { --text-entry-x: -180px; --text-entry-y: 100px; --text-exit-x: 180px; --text-exit-y: -100px; }
 
 /* Keep sideways swipe animations inside the viewport, without widening the page. */
 html { overflow-x:hidden; }
