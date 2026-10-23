@@ -268,6 +268,7 @@ $("fundamentalsBtn")?.addEventListener("click", async () => {
   } catch (e) {
     if (getSymbol() !== requestedSymbol) return;
     resetStatementAnalysis(`Financial statement analysis is unavailable: ${e.message}`);
+    if (messageEl) messageEl.textContent = `Could not load statements: ${e.message}`;
     if (outputEl) outputEl.innerHTML = `<p class="notice">${esc(e.message)}</p>`;
   } finally {
     if (fundamentalsBtn) fundamentalsBtn.disabled = false;
