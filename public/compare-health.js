@@ -1,0 +1,29 @@
+(()=>{
+"use strict";
+const $=id=>document.getElementById(id),X=window.ResearchExtras,E=window.ReportExport,esc=E.esc;let snapshot=null;
+const valid=s=>/^[A-Z0-9][A-Z0-9.:-]{0,23}$/.test(s),fmt=(v,unit,c)=>unit==="money"?(c||"Unknown")+" "+new Intl.NumberFormat(undefined,{maximumFractionDigits:2,notation:"compact"}).format(v):v.toFixed(2)+(unit==="percent"?"%":"×");
+async function get(url){const r=await fetch(url,{signal:AbortSignal.timeout(25000)});const d=await r.json();if(!r.ok)throw Error(d.error||"Data unavailable.");return d;}
+function metrics(data,quote){const r=window.StatementAnalysis.analyze(data);const items=r.metrics.map(m=>({...m,basis:m.formula}));const raw=quote?.quote?.raw,cap=Number(raw?.marketCap),quoteSymbol=String(raw?.symbol||quote?.symbol||"").toUpperCase(),currency=raw?.currency||raw?.reportedCurrency;const rev=r.metrics.find(m=>m.label==="Revenue")?.value,profit=r.metrics.find(m=>m.label==="Net income")?.value;
+ if(!r.isDemo&&!quote?.isDemo&&quoteSymbol===r.symbol&&Number.isFinite(cap)&&cap>0&&currency&&currency===r.currency){if(profit>0)items.push({label:"Market cap / annual net income",value:cap/profit,unit:"ratio",basis:"Latest supplied market cap ÷ latest annual net income (not TTM P/E)"});if(rev>0)items.push({label:"Market cap / annual revenue",value:cap/rev,unit:"ratio",basis:"Latest supplied market cap ÷ latest annual revenue (not a forward valuation)"});}
+ return{...r,metrics:items,quoteTime:quote?.fetchedAt||null};
+}
+$("toolkitLoad").addEventListener("click",async()=>{
+ const a=$("companyA").value.trim().toUpperCase(),b=$("companyB").value.trim().toUpperCase();if(!valid(a)||(b&&!valid(b))){$("toolkitStatus").textContent="Enter valid ticker symbols.";return;}if(a===b){$("toolkitStatus").textContent="Use two different companies, or leave the second blank.";return;}
+ $("toolkitLoad").disabled=true;snapshot=null;$("toolkitResults").hidden=true;$("toolkitStatus").textContent="Loading statements…";$("toolkitPdf").disabled=true;$("toolkitCsv").disabled=true;
+ try{
+ const symbols=b?[a,b]:[a];const loaded=await Promise.all(symbols.map(async symbol=>{const annual=await get("/api/fundamentals?symbol="+encodeURIComponent(symbol));let quote=null;try{quote=await get("/api/quote?symbol="+encodeURIComponent(symbol));}catch{}return metrics(annual,quote);}));
+ let quarterly=null,error="";try{quarterly=await get("/api/fundamentals?symbol="+encodeURIComponent(a)+"&period=quarter");}catch(e){error=e.message;}
+ const h=X.health(quarterly||{symbol:a});const labels=[...new Set(loaded.flatMap(r=>r.metrics.map(m=>m.label)))];
+ const rows=[["Generated",new Date().toISOString()],["Basis","Annual statements for comparison; quarterly statements for warning checks. Historical facts only, no ranking."]];
+ $("comparisonOutput").innerHTML='<div class="table-wrap"><table><caption>Historical company comparison — no investment ranking</caption><thead><tr><th scope="col">Metric / basis</th>'+loaded.map(r=>'<th scope="col">'+esc(r.symbol)+'<br><small>'+esc(r.date||"Date unavailable")+" · "+esc(r.currency||"Currency unavailable")+(r.isDemo?" · DEMO":"")+'</small></th>').join("")+'</tr></thead><tbody>'+labels.map(label=>{const values=loaded.map(r=>{const m=r.metrics.find(m=>m.label===label);return m?fmt(m.value,m.unit,r.currency):"Unavailable";});rows.push([label,...values]);return '<tr><th scope="row">'+esc(label)+'</th>'+values.map(v=>'<td>'+esc(v)+'</td>').join("")+'</tr>';}).join("")+'</tbody></table></div>';
+ const notes=loaded.map(r=>r.symbol+": annual "+(r.date||"unavailable")+", "+(r.currency||"unavailable")+(r.isDemo?", DEMO":"")+". "+r.gaps.join(" "));if(loaded.length===2){if(loaded[0].currency!==loaded[1].currency)notes.push("Different currencies: monetary figures are not directly comparable; no currency conversion applied.");if(loaded[0].date!==loaded[1].date)notes.push("Reporting dates differ; these are not matched-period comparisons.");}
+ notes.push("Industry, reporting basis and accounting policies can differ. Valuation ratios appear only when the provider explicitly supplies a matching quote currency and symbol; absent currency is never inferred. They combine a market snapshot with annual historical figures and are not price targets.");
+ $("comparisonNotes").textContent=notes.join(" ");rows.push(["Comparison limitations",notes.join(" ")]);
+ $("healthSource").textContent=a+" · "+(h.date||"Quarter unavailable")+" · "+(h.currency||"Currency unavailable")+(h.isDemo?" · ILLUSTRATIVE DEMO":" · Financial Modeling Prep")+(error?" · "+error:"");
+ $("healthOutput").innerHTML=h.checks.map(c=>{rows.push([c.title,c.state,c.detail,c.basis]);return '<article class="health-check health-'+c.state+'"><h3>'+esc(c.title)+'</h3><p><strong>'+({review:"● Review pattern",clear:"○ Pattern not triggered",missing:"— Insufficient data"}[c.state])+'</strong></p><p>'+esc(c.detail)+'</p><p class="muted">'+esc(c.basis)+'</p></article>';}).join("");
+ rows.push(["Quarterly source",$("healthSource").textContent]);snapshot={rows,symbol:a};$("toolkitResults").hidden=false;$("toolkitPdf").disabled=false;$("toolkitCsv").disabled=false;$("toolkitStatus").textContent="Research loaded. Warning patterns are prompts to investigate, not fraud findings or an overall health rating.";
+ }catch(e){$("toolkitStatus").textContent=e.name==="TimeoutError"?"Request timed out. Please retry.":e.message;}finally{$("toolkitLoad").disabled=false;}
+});
+for(const [id,type] of [["toolkitPdf","pdf"],["toolkitCsv","csv"]])$(id).addEventListener("click",()=>{if(!snapshot)return;const rows=[...snapshot.rows,["Your notes — unverified",$("toolkitNotes").value]];if(type==="pdf")E.print(E.html(snapshot.symbol+" — comparison and financial pattern report",rows));else E.download(snapshot.symbol+"-research-checks.csv",X.csv(rows),"text/csv;charset=utf-8");});
+const s=new URLSearchParams(location.search).get("symbol")?.toUpperCase();if(s&&valid(s))$("companyA").value=s;
+})();
