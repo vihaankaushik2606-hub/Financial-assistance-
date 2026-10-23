@@ -74,6 +74,10 @@ function renderAccount(session) {
     link.setAttribute("aria-label",session ? "Your account: "+displayName : "Sign in or create an account");
   });
   if($("profileNameInput")) $("profileNameInput").value = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || "";
+  if($("profilePhoneInput")) $("profilePhoneInput").value=session?.user?.user_metadata?.contact_phone || "";
+  if($("accountPlan")) $("accountPlan").hidden=!session;
+  if($("accountSettings")) $("accountSettings").hidden=!session;
+  if($("accountPlan") && session) loadAccountPlan();
   document.querySelector(".auth-mode")?.toggleAttribute("hidden",Boolean(session));
   if($("authIntro")) $("authIntro").hidden=Boolean(session);
 
@@ -219,21 +223,21 @@ async function runAuthAction(action) {
     if (action === "signup") {
       if (!$("authEmail")?.checkValidity() || !email || password.length < 8) throw new Error("Enter a valid email and a password with at least 8 characters.");
       const fullName=$("authName")?.value.trim();
-      if(!fullName) throw new Error("Enter your name to create your account.");
-      result = await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + "/account.html", data: {full_name:fullName} } });
+      
+      result = await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + "/dashboard.html", data: {full_name:fullName} } });
       if (result.error) throw result.error;
-      if ($("authStatus")) $("authStatus").textContent = result.data.session ? "Account created and signed in!" : "Check your inbox and spam folder for the confirmation email. Open its link, then sign in. If you already registered, choose Sign in.";
-      if (result.data.session) window.location.assign("/");
+      if ($("authStatus")) $("authStatus").textContent = result.data.session ? "Account created and signed in!" : "One more step: confirm your email to open your dashboard.";
+      if (result.data.session) window.location.assign("/dashboard.html");
     } else if (action === "signin") {
       if(!email || !password || !$("authEmail")?.checkValidity()) throw new Error("Enter your email and password to sign in.");
       result = await supabaseClient.auth.signInWithPassword({ email, password });
       if (result.error) throw result.error;
       if ($("authStatus")) $("authStatus").textContent = "Signed in successfully!";
-      if (result.data.session) window.location.assign("/");
+      if (result.data.session) window.location.assign("/dashboard.html");
     } else if (action === "google") {
       result = await supabaseClient.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin }
+        options: { redirectTo: window.location.origin + "/dashboard.html" }
       });
       if (result.error) throw result.error;
     } else if (action === "signout") {
@@ -276,20 +280,32 @@ function setAuthMode(mode) {
  $("showSignIn")?.setAttribute("aria-pressed",String(mode==="signin"));
  $("showSignUp")?.setAttribute("aria-pressed",String(mode==="signup"));
  $("authPassword")?.setAttribute("autocomplete",mode==="signup"?"new-password":"current-password");
- if($("authStatus")) $("authStatus").textContent=mode==="signup"?"After registering, check your email to confirm your account.":"Enter the email and password you registered with.";
+ if($("authStatus")) $("authStatus").textContent=mode==="signup"?"Create your account to start analysing stocks. Profile details can be added later.":"Enter the email and password you registered with.";
 }
 $("showSignIn")?.addEventListener("click",()=>setAuthMode("signin"));
 $("showSignUp")?.addEventListener("click",()=>setAuthMode("signup"));
 $("authPassword")?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();runAuthAction(authMode);}});
 $("saveProfileName")?.addEventListener("click",async()=>{
- const name=$("profileNameInput")?.value.trim();
- if(!name || !supabaseClient || !currentSession){$("authStatus").textContent="Enter your name while signed in.";return;}
+ const name=$("profileNameInput")?.value.trim() || "";
+ const phone=$("profilePhoneInput")?.value.trim() || "";
+ if(!supabaseClient || !currentSession){$("authStatus").textContent="Sign in to save account details.";return;}
+ if(phone && !/^[+()\d\s-]{5,30}$/.test(phone)){$("authStatus").textContent="Enter a valid phone number, or leave it blank.";return;}
  $("saveProfileName").disabled=true;
  try {
-  const {data,error}=await supabaseClient.auth.updateUser({data:{full_name:name}});
+  const {data,error}=await supabaseClient.auth.updateUser({data:{full_name:name,contact_phone:phone}});
   if(error)throw error;
   currentSession={...currentSession,user:data.user};renderAccount(currentSession);
-  $("authStatus").textContent="Your name has been saved.";
+  $("authStatus").textContent="Your account details have been saved.";
  }catch(error){$("authStatus").textContent=error.message||"Could not save your name.";}
  finally{$("saveProfileName").disabled=false;}
 });
+
+async function loadAccountPlan(){
+ const el=$("planUsage");if(!el)return;
+ try{
+  const t=await getAccessToken();
+  const r=await fetch("/api/market-usage",{headers:{Authorization:"Bearer "+t},cache:"no-store"});
+  const d=await r.json();if(!r.ok)throw Error(d.error||"Could not load your allowance.");
+  el.textContent=d.remaining+" of 4 market-data calls available in the current 24-hour window."+(d.nextResetAt?" Next call available after "+new Date(d.nextResetAt).toLocaleString()+".":"");
+ }catch(e){el.textContent=e.message||"Could not load your allowance.";}
+}
