@@ -11,7 +11,7 @@ const temporaryGuestAccess=()=>getEnv("MARKET_GUEST_ACCESS")==="true";
 const { summarizeStatements, createBudget } = require("./research");
 const { classifyProviderError } = require("./provider-errors");
 
-const { normalizeNews } = require("./news");
+const { normalizeNews, latestPublisherNews } = require("./news");
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const FMP_BASE_URL = "https://financialmodelingprep.com/stable";
@@ -329,6 +329,7 @@ app.get("/api/news", async (req,res) => {
  const symbol=raw?validSymbol(raw):"";
  if(raw&&!symbol)return res.status(400).json({error:"Enter a valid company ticker."});
  try{
+  if(!symbol){const articles=await latestPublisherNews();return res.json({symbol:"",source:"CNBC publisher feed",fetchedAt:new Date().toISOString(),articles});}
   const data=await fmpRequest(symbol?"news/stock":"news/stock-latest",symbol?{symbols:symbol,limit:12}:{limit:12});
   if(data===null)return res.status(503).json({error:"News needs the market-data connection. No sample headlines are shown."});
   res.json({symbol,source:"Financial Modeling Prep",fetchedAt:new Date().toISOString(),articles:normalizeNews(data,symbol)});
@@ -581,4 +582,5 @@ if (require.main === module) {
   });
 }
 module.exports = app;
+
 
