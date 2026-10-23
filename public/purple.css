@@ -306,3 +306,6 @@ body { width:100%; max-width:100%; overflow-x:clip; }
 @media(max-width:700px){.floating-subpage .topbar{justify-content:flex-start!important;padding-left:0!important}.site-header .brand,.floating-subpage .topbar .brand{max-width:100%;min-width:0}.floating-subpage .subpage-header-nav{width:100%;margin-left:0;justify-content:flex-start!important;gap:8px 14px}.header-account{flex:none}}
 
 .market-allowance,.market-allowance *{animation:none!important;translate:none!important;scale:none!important;opacity:1!important;transition:none!important}.market-allowance>a{display:inline-flex;align-items:center;min-height:44px}.market-allowance details{margin-top:8px}.market-allowance>p{margin:0 0 8px}:is(.site-header,.topbar)>.header-account{animation:none!important;translate:none!important;scale:none!important;opacity:1!important}
+
+/* Temporary account UI pause; market-data authorization stays enforced. */
+.sign-in-hidden :is(.header-account,.nav-account,.account-area,#accountPanel,#authSignedOut,#authSignedIn,a[href="/account.html"],a[href="/account.html#settings"]){display:none!important}
