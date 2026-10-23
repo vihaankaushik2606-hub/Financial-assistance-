@@ -38,7 +38,7 @@
         hide_side_toolbar: true, hide_top_toolbar: true, hide_legend: true, hide_volume: true,
         withdateranges: false, save_image: false, calendar: false,
         support_host: "https://www.tradingview.com",
-        overrides: { "mainSeriesProperties.lineStyle.color": "#c49bfa" }
+        overrides: { "mainSeriesProperties.lineStyle.color": "#c49bfa", "scalesProperties.lineColor":"rgba(0,0,0,0)", "paneProperties.separatorColor":"rgba(0,0,0,0)" }
       });
       const observer = new MutationObserver(() => {
         const frame = container.querySelector("iframe");
