@@ -14,8 +14,8 @@ function frontend(fetchRequest = async () => response({})) {
     return nodes.get(id);
   }
   const context = vm.createContext({ document: { getElementById: node, querySelector: node }, window: { StatementAnalysis: require('../public/statement-analysis') },
-    fetch: url => url === '/api/config' ? Promise.resolve(response({ authConfigured: false })) : url === '/api/health' ? Promise.resolve(response({})) : fetchRequest(url),
-    setTimeout, clearTimeout, console });
+    fetch: (url,options) => url === '/api/config' ? Promise.resolve(response({ authConfigured: false })) : url === '/api/health' ? Promise.resolve(response({})) : fetchRequest(url,options),
+    setTimeout, clearTimeout, AbortController, console });
   vm.runInContext(source('public/app.js').replace(/\n\}\)\(\);\s*$/, '\n;globalThis.testApp = { calcRatios };\n})();'), context);
   return { node, context };
 }
@@ -151,4 +151,22 @@ test('statement loading surfaces sign-in blocks and preserves partial data', asy
  vm.runInContext(source('server/index.js'),context);
  await assert.rejects(vm.runInContext('getFundamentals("AAPL")',context),e=>e.status===401&&e.code==='SIGN_IN_REQUIRED');
  allBlocked=false;const partial=await vm.runInContext('getFundamentals("AAPL")',context);assert.equal(partial.statements.incomeStatement.available,true);assert.equal(partial.statements.cashFlow.available,false);
+});
+
+test('slow quote cannot overwrite a newer ticker selection',async()=>{
+ let finish;
+ const {node}=frontend(url=>url.startsWith('/api/quote')?new Promise(resolve=>{finish=resolve;}):Promise.resolve(response({error:'No statements'},false)));
+ let queued=0;node('loadBtn').click=()=>queued++;
+ node('symbol').value='IBM';const loading=node('loadBtn').listeners.click();
+ node('symbol').value='MSFT';finish(response({symbol:'IBM',quote:{raw:{name:'Old IBM',price:10}}}));await loading;
+ assert.doesNotMatch(node('marketCards').innerHTML,/Old IBM/);assert.equal(queued,1);
+ assert.equal(node('loadBtn').disabled,false);
+});
+test('AI quota failure preserves a clearly labeled factual company summary',async()=>{
+ const {node}=frontend(async url=>url.startsWith('/api/quote')?response({symbol:'IBM',quote:{raw:{name:'IBM',symbol:'IBM',price:10}}}):url.startsWith('/api/fundamentals')?response({statements:{}}):{status:429,ok:false,json:async()=>({error:'Quota exhausted'})});
+ node('symbol').value='IBM';await node('loadBtn').listeners.click();await new Promise(resolve=>setImmediate(resolve));
+ assert.match(node('autoAnalysisOutput').innerHTML,/Available company data/);
+ assert.match(node('autoAnalysisOutput').innerHTML,/IBM/);
+ assert.match(node('autoAnalysisStatus').textContent,/without AI commentary/);
+ assert.equal(node('autoAnalysisOutput').hidden,false);
 });

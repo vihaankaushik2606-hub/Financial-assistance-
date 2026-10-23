@@ -5,6 +5,7 @@
   if (!mount || !status || !link) return;
   let activeSymbol = "";
   let timeout;
+  let observer;
   window.CompanyPriceChart = {
     load(value) {
       const symbol = String(value || "").trim().toUpperCase();
@@ -12,6 +13,7 @@
       if (symbol === activeSymbol && mount.querySelector("iframe")) return;
       activeSymbol = symbol;
       clearTimeout(timeout);
+      observer?.disconnect();
       mount.replaceChildren();
       mount.hidden = false;
       status.textContent = `Loading ${symbol} price chart…`;
@@ -40,7 +42,8 @@
         support_host: "https://www.tradingview.com",
         overrides: { "mainSeriesProperties.lineStyle.color": "#c49bfa", "scalesProperties.lineColor":"rgba(0,0,0,0)", "paneProperties.separatorColor":"rgba(0,0,0,0)" }
       });
-      const observer = new MutationObserver(() => {
+      observer = new MutationObserver(() => {
+        if(activeSymbol!==symbol)return;
         const frame = container.querySelector("iframe");
         if (!frame) return;
         frame.title = `${symbol} interactive stock price chart`;
