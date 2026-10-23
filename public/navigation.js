@@ -27,24 +27,6 @@
  }
  markCurrent(); window.addEventListener('hashchange', markCurrent);
 })();
-/* Track scroll direction without changing layout or hiding focused controls. */
-(() => {
- let previousY = window.scrollY;
- let pending = false;
- window.addEventListener('scroll', () => {
-  if (pending) return;
-  pending = true;
-  window.requestAnimationFrame(() => {
-   const currentY = window.scrollY;
-   if (Math.abs(currentY - previousY) >= 3) {
-    document.documentElement.classList.toggle('scrolling-up', currentY < previousY);
-    previousY = currentY;
-   }
-   pending = false;
-  });
- }, { passive: true });
-})();
-
 (() => {const nav=document.querySelector(".site-header nav,.subpage-header-nav,.quick-nav");if(nav&&!nav.querySelector('a[href="/research-lab.html"]')){const a=document.createElement("a");a.href="/research-lab.html";a.textContent="Business Analysis Lab";if(location.pathname==="/research-lab.html")a.setAttribute("aria-current","page");nav.append(a);}})();
 
 (()=>{const n=document.querySelector(".site-header nav,.subpage-header-nav,.quick-nav");if(n&&!n.querySelector('a[href="/news.html"]')){const a=document.createElement("a");a.href="/news.html";a.textContent="News";n.append(a);}})();
