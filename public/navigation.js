@@ -42,3 +42,5 @@
 })();
 
 document.documentElement.classList.remove("sign-in-hidden");
+
+(()=>{const nav=document.querySelector(".site-header nav,.subpage-header-nav,.quick-nav");if(nav&&!nav.querySelector('a[href="/financial-instruments.html"]')){const a=document.createElement("a");a.href="/financial-instruments.html";a.textContent="Instruments";if(location.pathname==="/financial-instruments.html")a.setAttribute("aria-current","page");nav.append(a);}})();
