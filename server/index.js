@@ -395,10 +395,14 @@ async function getFundamentals(symbol, period = "annual") {
       }
       return [label, { available: true, source: "Financial Modeling Prep", annualReports, quarterlyReports }];
     } catch (e) {
-      return [label, { available: false, message: e.message }];
+      return [label, { available: false, message: e.message, code: e.code, status: e.status }];
     }
   }));
 
+  if(entries.every(([,statement])=>!statement.available)){
+    const blocked=entries.map(([,statement])=>statement).find(statement=>statement.code);
+    if(blocked){const error=new Error(blocked.message);error.code=blocked.code;error.status=blocked.status||503;throw error;}
+  }
   return { symbol, source: "Financial Modeling Prep", isDemo: false, fetchedAt: new Date().toISOString(), statements: Object.fromEntries(entries) };
 }
 

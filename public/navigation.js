@@ -45,7 +45,16 @@
  }, { passive: true });
 })();
 
-(() => {const nav=document.querySelector(".site-header nav,.subpage-header-nav,.quick-nav");if(nav&&!nav.querySelector('a[href="/research-lab.html"]')){const a=document.createElement("a");a.href="/research-lab.html";a.textContent="Research Lab";if(location.pathname==="/research-lab.html")a.setAttribute("aria-current","page");nav.append(a);}})();
+(() => {const nav=document.querySelector(".site-header nav,.subpage-header-nav,.quick-nav");if(nav&&!nav.querySelector('a[href="/research-lab.html"]')){const a=document.createElement("a");a.href="/research-lab.html";a.textContent="Business Analysis Lab";if(location.pathname==="/research-lab.html")a.setAttribute("aria-current","page");nav.append(a);}})();
 
 (()=>{const n=document.querySelector(".site-header nav,.subpage-header-nav,.quick-nav");if(n&&!n.querySelector('a[href="/news.html"]')){const a=document.createElement("a");a.href="/news.html";a.textContent="News";n.append(a);}})();
-(()=>{const main=document.querySelector('main');if(main&&!document.querySelector('.workspace-nav')){const n=document.createElement('nav');n.className='workspace-nav';n.setAttribute('aria-label','Research tools');for(const [href,label] of [['/evidence.html','Evidence Review'],['/quarterly.html','Quarterly Changes'],['/news-impact.html','News Impact'],['/my-research.html','My Research']]){const a=document.createElement('a');a.href=href;a.textContent=label;n.append(a);}main.append(n);}})();
+(()=>{const main=document.querySelector('main');if(main&&!document.querySelector('.workspace-nav')){const n=document.createElement('nav');n.className='workspace-nav';n.setAttribute('aria-label','Research tools');for(const [href,label] of [['/evidence.html','Evidence Review'],['/quarterly.html','Quarterly Changes'],['/news-impact.html','News Impact'],['/my-research.html','My Analysis']]){const a=document.createElement('a');a.href=href;a.textContent=label;n.append(a);}main.append(n);}})();
+(() => {
+ const header=document.querySelector('.site-header,.topbar');if(!header)return;
+ let account=header.querySelector('.profile-link')||header.querySelector('a[href="/account.html"]');
+ if(!account){account=document.createElement('a');account.href='/account.html';}
+ header.querySelectorAll('a[href="/account.html"]').forEach(a=>{if(a!==account)a.remove();});
+ account.classList.add('profile-link','header-account');account.setAttribute('aria-label','Your account / sign in');account.title='Your account';
+ if(!account.querySelector('svg'))account.innerHTML='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>';
+ header.append(account);
+})();

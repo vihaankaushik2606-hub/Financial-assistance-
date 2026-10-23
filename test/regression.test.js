@@ -142,3 +142,13 @@ test('View financial statements also generates analysis and clearly labels demos
   assert.match(node('statementAnalysisStatus').textContent, /Illustrative sample data/);
   assert.match(node('statementAnalysisMetrics').innerHTML, /20.0%/);
 });
+
+
+test('statement loading surfaces sign-in blocks and preserves partial data', async () => {
+ const app={use(){},get(){},post(){}},express=Object.assign(()=>app,{json(){},static(){}});let allBlocked=true;
+ const access={createRpc:()=>async()=>({}),createMarketAccess:()=>({request:async(endpoint)=>{if(allBlocked||endpoint==='cash-flow-statement'){const e=new Error('Sign in to request uncached market data.');e.code='SIGN_IN_REQUIRED';e.status=401;throw e;}return{data:[{date:'2025-09-30'}],meta:{endpoint,cache:'fresh'}};}})};
+ const context=vm.createContext({require:name=>name==='express'?express:name==='dotenv'?{config(){}}:name==='./market-access'?access:name.startsWith('./')?require('../server/'+name.slice(2)):require(name),module:{exports:{}},__dirname:path.join(__dirname,'../server'),process:{env:{FMP_API_KEY:'test-only'}},URL,console});
+ vm.runInContext(source('server/index.js'),context);
+ await assert.rejects(vm.runInContext('getFundamentals("AAPL")',context),e=>e.status===401&&e.code==='SIGN_IN_REQUIRED');
+ allBlocked=false;const partial=await vm.runInContext('getFundamentals("AAPL")',context);assert.equal(partial.statements.incomeStatement.available,true);assert.equal(partial.statements.cashFlow.available,false);
+});
