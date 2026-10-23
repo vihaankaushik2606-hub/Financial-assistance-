@@ -1,0 +1,8 @@
+(()=>{
+"use strict";
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function download(name,content,type){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);}
+function print(html){const frame=document.createElement("iframe");frame.title="Printable research report";frame.style.cssText="position:fixed;width:1px;height:1px;left:-10000px;border:0";document.body.append(frame);frame.onload=()=>{frame.contentWindow.focus();frame.contentWindow.print();setTimeout(()=>frame.remove(),60000);};frame.srcdoc=html;}
+function html(title,rows){return '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font:14px/1.6 system-ui;color:#15121a;margin:32px;overflow-wrap:anywhere}h1{font-size:26px}h2{font-size:18px}table{border-collapse:collapse;width:100%}th,td{text-align:left;vertical-align:top;border-bottom:1px solid #ddd;padding:10px;white-space:pre-wrap}tr{break-inside:avoid}@page{margin:15mm}</style></head><body><h1>'+esc(title)+'</h1><p>Exported '+esc(new Date().toISOString())+'. Educational research, not a recommendation. Provider data and user assumptions may be incomplete; verify against filings.</p><table><thead><tr><th>Section / field</th><th>Value / notes</th></tr></thead><tbody>'+rows.map(r=>'<tr><th>'+esc(r[0])+'</th><td>'+esc(r[1])+'</td></tr>').join("")+'</tbody></table></body></html>';}
+window.ReportExport={download,print,html,esc};
+})();

@@ -64,6 +64,7 @@ function exportHtml(){
 $("labExport").addEventListener("click",()=>{
  if(!report)return;save();const url=URL.createObjectURL(new Blob([exportHtml()],{type:"text/html;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download=report.symbol+"-research-notebook.html";a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
 });
-$("labPrint").addEventListener("click",()=>{save();window.print();});
+$("labPrint").addEventListener("click",()=>{if(!report)return;save();window.ReportExport.print(exportHtml());});
+$("labCsv").addEventListener("click",()=>{if(!report)return;save();const rows=[["Company",report.symbol],["Source",$("labSource").textContent],["Exported",new Date().toISOString()],["Metric","Exact value","Unit","Basis"],...report.metrics.map(m=>[m.label,m.value,m.unit,m.formula]),["Data gaps",report.gaps.join(" ")],...report.findings.map(f=>[f.title,f.text]),...fields.map(f=>[document.querySelector('label[for="'+f.id+'"]')?.textContent||f.id,f.value]),["Status","Educational research; notes are user interpretations, not recommendations."]];window.ReportExport.download(report.symbol+"-research-notebook.csv",window.ResearchExtras.csv(rows),"text/csv;charset=utf-8");});
 const querySymbol=new URLSearchParams(location.search).get("symbol")?.toUpperCase();if(querySymbol&&/^[A-Z0-9][A-Z0-9.:-]{0,23}$/.test(querySymbol)){$("labSymbol").value=querySymbol;load();}
 })();
