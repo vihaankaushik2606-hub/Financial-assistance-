@@ -5,7 +5,21 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Finance Lab">
 <script src="/pwa.js" defer></script>
-<script src="/market-access.js?v=business-analysis-1" defer></script></head><body class="floating-subpage">
+<script src="/market-access.js?v=business-analysis-1" defer></script><style>
+.account-page .account-copy,.account-page .card-heading{display:none}
+.account-page .account-area{padding:12px 0 24px}
+.account-page .account-layout{gap:0}
+.account-page .account-card{padding-top:0}
+.account-page .account-card h2{font-size:clamp(28px,5vw,40px);margin:12px 0}
+.account-page input:not([type="checkbox"]){display:block;width:100%;min-height:44px;margin:6px 0 16px;padding:8px 0;border-bottom:1px solid #614078!important}
+.account-page .auth-mode{display:flex;gap:24px;margin:12px 0}
+.account-page .auth-mode [aria-pressed="true"]{text-decoration:underline;text-underline-offset:8px}
+.account-page [hidden]{display:none!important}
+.account-page .account-card,.account-page .account-card *{animation:none!important;scale:1!important}
+.account-page #authStatus{color:#f1d8ff;margin:12px 0}
+.header-account .account-label{font-size:12px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:is(.site-header,.floating-subpage .topbar)>.header-account{width:auto!important;gap:6px}
+</style></head><body class="floating-subpage account-page">
   <div class="market-flow-backdrop" aria-hidden="true">
     <svg viewBox="0 0 1200 520" preserveAspectRatio="none" focusable="false">
       <defs>
@@ -28,18 +42,18 @@
   </div>
 <nav class="quick-nav" aria-label="Account navigation"><a href="/">Home</a><a href="/dashboard.html">Stock Analysis Dashboard</a><a href="/account.html">Account</a><a href="/account.html#settings">Settings</a></nav><header class="topbar"><a class="brand" href="/" aria-label="AI Finance Lab home"><span class="subpage-brand-mark">F↗</span><span>AI Finance <strong>Lab</strong></span></a><nav class="subpage-header-nav" aria-label="Main navigation"><a href="/">Home</a><a href="/dashboard.html">Stock Analysis Dashboard</a><a href="/account.html">Account</a><a href="/account.html#settings">Settings</a></nav></header><main><section class="account-area" id="accountPanel"><div class="wrap account-layout">
   <div class="account-copy"><p class="eyebrow">Your workspace</p><h2>Your account.</h2><p>Keep your saved research together and return to it on any device.</p><div class="account-benefits"><span>✓ Email or Google sign-in</span><span>✓ Private saved analyses</span><span>✓ Pick up where you left off</span></div><p class="quiet-note">AI tools require an account and an available AI service.</p></div>
-  <div class="account-card"><div class="card-heading"><span class="mini-mark">F↗</span><span>YOUR ACCOUNT</span></div><h2 id="accountHeading">Sign in or create an account.</h2><p class="muted">Use Google or your email to sign in.</p>
+  <div class="account-card"><div class="card-heading"><span class="mini-mark">F↗</span><span>YOUR ACCOUNT</span></div><h2 id="accountHeading">Sign in</h2><p id="authIntro" class="muted">Already registered? Sign in below.</p><div class="auth-mode"><button id="showSignIn" type="button" aria-pressed="true">Sign in</button><button id="showSignUp" type="button" aria-pressed="false">Create account</button></div>
     <p id="authSetupNotice" class="notice" role="status">Checking account service…</p>
     <div id="authSignedOut">
       <button id="googleSignInBtn" class="google-button" type="button"><span class="google-g" aria-hidden="true">G</span>Continue with Google</button>
       <div class="divider"><span>or use your email</span></div>
-      <label for="authEmail">Email address</label><input id="authEmail" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com">
+      <div id="signupName" hidden><label for="authName">Your name</label><input id="authName" autocomplete="name" maxlength="80" placeholder="Your name"></div><label for="authEmail">Email address</label><input id="authEmail" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com">
       <label for="authPassword">Password</label><input id="authPassword" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="At least 8 characters">
-      <div class="auth-actions"><button id="signInBtn" class="button mint" type="button">Sign in <span aria-hidden="true">→</span></button><button id="signUpBtn" class="button outline" type="button">Create account</button></div>
+      <div class="auth-actions"><button id="signInBtn" class="button mint" type="button">Sign in <span aria-hidden="true">→</span></button><button id="signUpBtn" class="button outline" type="button" hidden>Create account</button></div>
     </div>
-    <div id="authSignedIn" hidden><p id="accountIdentity" class="identity"></p><dl class="profile-details"><div><dt>Name</dt><dd id="profileName"></dd></div><div><dt>Email</dt><dd id="profileEmail"></dd></div><div><dt>Member since</dt><dd id="profileJoined"></dd></div><div><dt>Sign-in method</dt><dd id="profileProvider"></dd></div></dl><a class="button mint dashboard-link" href="/dashboard.html">Open your dashboard <span aria-hidden="true">↗</span></a><div class="signed-in-actions"><button id="refreshHistoryBtn" type="button">Refresh history</button><button id="signOutBtn" type="button">Sign out</button></div><h3>Your saved research</h3><div id="historyList" class="history-list"></div></div>
+    <div id="authSignedIn" hidden><p id="accountIdentity" class="identity"></p><label for="profileNameInput">Your name</label><input id="profileNameInput" autocomplete="name" maxlength="80"><button id="saveProfileName" type="button">Save name</button><dl class="profile-details"><div><dt>Name</dt><dd id="profileName"></dd></div><div><dt>Email</dt><dd id="profileEmail"></dd></div><div><dt>Member since</dt><dd id="profileJoined"></dd></div><div><dt>Sign-in method</dt><dd id="profileProvider"></dd></div></dl><a class="button mint dashboard-link" href="/dashboard.html">Open your dashboard <span aria-hidden="true">↗</span></a><div class="signed-in-actions"><button id="refreshHistoryBtn" type="button">Refresh history</button><button id="signOutBtn" type="button">Sign out</button></div><h3>Your saved research</h3><div id="historyList" class="history-list"></div></div>
     <p id="authStatus" class="notice" role="status" aria-live="polite">Sign in to access your private research history.</p>
   </div>
 </div></section>
-<section id="settings" class="settings-panel wrap"><h2>Settings</h2><p>Choose how the website behaves on this device.</p><label class="setting-row"><input type="checkbox" id="reduceMotion"> Reduce animations and smooth scrolling</label><p id="settingsStatus" role="status"></p><h3>Account access</h3><p>Use the account section above to create an account, sign in, view saved research, or sign out.</p><a class="button mint" href="#accountPanel">Go to account</a></section><p class="notice"><a href="/research-lab.html">Open Business Analysis Lab ↗</a> · <a href="/news.html">Company and market news ↗</a></p></main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script><script src="/account.js?v=tester-1" defer></script><script src="/navigation.js?v=business-analysis-1" defer></script><p style="text-align:center;padding:20px"><a href="/install.html" style="color:#d6b3ff">Install AI Finance Lab ↗</a></p>
+<section id="settings" class="settings-panel wrap"><h2>Settings</h2><p>Choose how the website behaves on this device.</p><label class="setting-row"><input type="checkbox" id="reduceMotion"> Reduce animations and smooth scrolling</label><p id="settingsStatus" role="status"></p><h3>Account access</h3><p>Use the account section above to create an account, sign in, view saved research, or sign out.</p><a class="button mint" href="#accountPanel">Go to account</a></section><p class="notice"><a href="/research-lab.html">Open Business Analysis Lab ↗</a> · <a href="/news.html">Company and market news ↗</a></p></main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script><script src="/account.js?v=auth-fix-2" defer></script><script src="/navigation.js?v=business-analysis-1" defer></script><p style="text-align:center;padding:20px"><a href="/install.html" style="color:#d6b3ff">Install AI Finance Lab ↗</a></p>
 </body></html>
