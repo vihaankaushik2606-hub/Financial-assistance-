@@ -4,6 +4,8 @@ const path = require("path");
 const { AsyncLocalStorage } = require("node:async_hooks");
 const { createMarketAccess, createRpc } = require("./market-access");
 const marketContext = new AsyncLocalStorage();
+const {createDevelopmentMarketAccess}=require("./development-market-access");
+const developmentOpenAccess=()=>getEnv("DEVELOPMENT_OPEN_ACCESS")==="true";
 const { browserIdentity } = require("./guest-market");
 const temporaryGuestAccess=()=>getEnv("MARKET_GUEST_ACCESS")==="true";
 const { summarizeStatements, createBudget } = require("./research");
@@ -15,6 +17,7 @@ const PORT = Number(process.env.PORT || 3000);
 const FMP_BASE_URL = "https://financialmodelingprep.com/stable";
 
 app.use(express.json({ limit: "100kb" }));
+app.use((req,res,next)=>{if(developmentOpenAccess() && req.path==="/account.html")return res.redirect("/dashboard.html");next();});
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 function getEnv(key) {
@@ -35,11 +38,13 @@ app.get("/api/config", (_req, res) => {
     supabaseUrl: authConfigured ? supabaseUrl : null,
     supabaseAnonKey: authConfigured ? supabaseAnonKey : null,
     authConfigured,
-    temporaryGuestAccess: temporaryGuestAccess()
+    temporaryGuestAccess: temporaryGuestAccess(),
+    developmentOpenAccess: developmentOpenAccess()
   });
 });
 
 async function requireAuth(req, res, next) {
+  if(developmentOpenAccess()){req.authUser={id:"development-public",isGuest:true};return next();}
   if (req.authUser) return next();
   const supabaseUrl = getEnv("SUPABASE_URL").replace(/\/$/, "");
   const supabaseAnonKey = getEnv("SUPABASE_ANON_KEY");
@@ -141,6 +146,7 @@ const marketAccess=createMarketAccess({
  fetchProvider:fetchFmpProvider
 });
 app.get("/api/market-usage",async(req,res)=>{
+ if(developmentOpenAccess())return res.json({developmentOpenAccess:true,signedIn:false,limit:null,remaining:null,windowHours:null});
  try{const usage=await marketAccess.usage(marketContext.getStore()?.userId);usage.guestAccess=temporaryGuestAccess();usage.signedIn=!req.authUser?.isGuest;res.json(usage);}
  catch(e){res.status(e.status||503).json({error:"Market-data limits are temporarily unavailable. No new provider calls will be made."});}
 });
@@ -199,12 +205,14 @@ function getSampleStatements(symbol) {
   };
 }
 
+const developmentMarketAccess=createDevelopmentMarketAccess({fetchProvider:fetchFmpProvider});
 async function fmpRequest(endpoint, params = {}) {
  const fmpKey=getEnv("FMP_API_KEY");
  if(!fmpKey||fmpKey.includes("replace_with"))return null;
  const context=marketContext.getStore();
  try{
-  const result=await marketAccess.request(endpoint,params,context?.userId,CACHE_TTL_MS[endpoint]||3600000);
+  const access=developmentOpenAccess()?developmentMarketAccess:marketAccess;
+  const result=await access.request(endpoint,params,context?.userId,CACHE_TTL_MS[endpoint]||3600000);
   context?.reads.push(result.meta);
   return result.data;
  }catch(e){context?.reads.push({endpoint,period:params.period,cache:"unavailable",updatedAt:null,reason:e.code||"PROVIDER_ERROR"});throw e;}
