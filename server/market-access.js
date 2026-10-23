@@ -27,10 +27,11 @@ function createMarketAccess({rpc,fetchProvider,now=()=>Date.now()}){
   try{return await work;}finally{inFlight.delete(flightKey);}
  },async usage(userId){return rpc({p_action:'status',p_user:userId||null});}};
 }
-function createRpc({url,key,secret,fetchImpl=fetch}){
+function createRpc({url,key,secret,guest=false,fetchImpl=fetch}){
  return async args=>{
   if(!url||!key||!secret)throw failure('CACHE_NOT_CONFIGURED');
-  const response=await fetchImpl(url.replace(/\/$/,'')+'/rest/v1/rpc/market_control',{method:'POST',headers:{apikey:key,Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({p_secret:secret,...args}),signal:AbortSignal.timeout(10000)});
+  const payload={p_secret:secret,...args};if(guest){payload.p_guest=payload.p_user||null;delete payload.p_user;}
+  const response=await fetchImpl(url.replace(/\/$/,'')+'/rest/v1/rpc/'+(guest?'market_control_guest':'market_control'),{method:'POST',headers:{apikey:key,Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(10000)});
   if(!response.ok)throw failure('CACHE_UNAVAILABLE');
   return response.json();
  };
