@@ -55,6 +55,7 @@ async function checkHealth() {
     const fmpText = h.providerConfigured ? "FMP configured" : "Demo mode";
     const aiText = h.aiConfigured ? "AI configured" : "AI setup pending";
     statusEl.textContent = `Online · ${fmpText} · ${aiText}`;
+    if($("autoAnalysisStatus") && !$("autoCompany")?.value.trim()) $("autoAnalysisStatus").textContent=h.aiConfigured?"Select a stock above to generate its company overview automatically.":"The AI service is not configured. Stock figures remain available.";
     if (dotEl) {
       dotEl.style.background = h.providerConfigured && h.aiConfigured ? "var(--green)" : "var(--amber)";
     }
@@ -97,6 +98,7 @@ $("loadBtn")?.addEventListener("click", async () => {
 
   if (loadBtn?.disabled) return;
   if (loadBtn) loadBtn.disabled = true;
+  syncCompanyOverview(requestedSymbol);
   window.CompanyPriceChart?.load(requestedSymbol);
   resetLinkedNumbers();
   resetStatementAnalysis(`Loading annual statements for ${requestedSymbol}…`);
@@ -138,6 +140,7 @@ $("loadBtn")?.addEventListener("click", async () => {
   } finally {
     await loadLinkedNumbers(requestedSymbol);
     if (loadBtn) loadBtn.disabled = false;
+    if (getSymbol() === requestedSymbol) void runAutomaticCompanyAnalysis();
   }
 });
 
@@ -354,6 +357,17 @@ $("symbol")?.addEventListener("change", () => { if (getSymbol() && !$("loadBtn")
 // 02 / Automatic Company Analysis
 const autoCompanyInput = $("autoCompany");
 let autoAnalysisInFlight = false;
+let autoAnalysisRequest = 0;
+let autoAnalysisController = null;
+function syncCompanyOverview(ticker) {
+ autoAnalysisRequest++;
+ autoAnalysisController?.abort();
+ autoAnalysisInFlight=false;
+ if(autoCompanyInput) autoCompanyInput.value=ticker;
+ if($("autoAnalysisOutput")) { $("autoAnalysisOutput").hidden=true; $("autoAnalysisOutput").innerHTML=""; }
+ if($("autoAnalysisStatus")) $("autoAnalysisStatus").textContent=`Company overview linked to ${ticker}. Loading its financial figures…`;
+ if($("autoAnalyzeBtn")) $("autoAnalyzeBtn").disabled=false;
+}
 async function runAutomaticCompanyAnalysis() {
   const company = autoCompanyInput?.value.trim();
   const button = $("autoAnalyzeBtn");
@@ -366,6 +380,8 @@ async function runAutomaticCompanyAnalysis() {
     return;
   }
 
+  const requestId=++autoAnalysisRequest;
+  autoAnalysisController=new AbortController();
   autoAnalysisInFlight = true;
   if (button) button.disabled = true;
   if (outputEl) outputEl.hidden = true;
@@ -379,10 +395,12 @@ async function runAutomaticCompanyAnalysis() {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`
       },
+      signal: autoAnalysisController.signal,
       body: JSON.stringify({ company })
     });
 
     const data = await response.json().catch(() => ({}));
+    if(requestId!==autoAnalysisRequest || autoCompanyInput?.value.trim()!==company)return;
     if (!response.ok) throw new Error(data.error || "Analysis could not be generated.");
 
     if (outputEl) {
@@ -398,10 +416,11 @@ async function runAutomaticCompanyAnalysis() {
       statusEl.textContent = data.dataNote || "Analysis generated. Confirm important metrics against audited filings.";
     }
   } catch (error) {
+    if(requestId!==autoAnalysisRequest || error.name==="AbortError")return;
     if (statusEl) statusEl.textContent = error.message || "Automatic analysis failed.";
   } finally {
-    autoAnalysisInFlight = false;
-    if (button) button.disabled = false;
+    if(requestId===autoAnalysisRequest){autoAnalysisInFlight = false;
+    if (button) button.disabled = false;}
   }
 }
 

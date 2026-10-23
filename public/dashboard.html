@@ -98,12 +98,12 @@
 
   <section class="panel">
     <div class="section-title"><div><div class="eyebrow">Company overview</div><h2>Get a company overview</h2></div><span class="tag">AI-assisted · check sources</span></div>
-    <p class="muted">Enter a stock ticker (for example, IBM) or a company name, then press Enter or leave the field. AI will summarize available information and clearly flag missing financial data. Company names are not automatically converted to tickers yet.</p>
+    <p class="muted">Linked to the stock selected above. Its company overview is generated automatically after the financial figures load. You can also enter another ticker or company here and select Analyze company.</p>
     <label>Company name or stock ticker
       <input id="autoCompany" maxlength="120" placeholder="e.g. IBM or Microsoft">
     </label>
     <div class="actions"><button id="autoAnalyzeBtn" class="primary">Analyze company</button></div>
-    <p id="autoAnalysisStatus" class="notice" role="status">Company overviews need the AI service to be enabled.</p>
+    <p id="autoAnalysisStatus" class="notice" role="status">Select a stock above to generate its company overview automatically.</p>
     <article id="autoAnalysisOutput" class="finding" hidden></article>
   </section>
 
@@ -166,7 +166,7 @@
 <script src="/company-chart.js?v=center-pop-1" defer></script>
 <link rel="stylesheet" href="/analysis-charts.css?v=1">
 <script src="/analysis-charts.js?v=1" defer></script>
-<script src="/app.js?v=tester-1" defer></script>
+<script src="/app.js?v=linked-overview-2" defer></script>
 <script src="/navigation.js?v=business-analysis-1" defer></script>
 <p style="text-align:center;padding:20px"><a href="/install.html" style="color:#d6b3ff">Install AI Finance Lab ↗</a></p>
 </body>
