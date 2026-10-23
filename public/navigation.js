@@ -41,4 +41,4 @@
  header.append(account);
 })();
 
-document.documentElement.classList.add("sign-in-hidden");
+document.documentElement.classList.remove("sign-in-hidden");

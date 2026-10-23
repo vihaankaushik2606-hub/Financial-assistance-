@@ -228,8 +228,6 @@ body { width:100%; max-width:100%; overflow-x:clip; }
 
 .market-allowance,.market-allowance *{animation:none!important;translate:none!important;scale:none!important;opacity:1!important;transition:none!important}.market-allowance>a{display:inline-flex;align-items:center;min-height:44px}.market-allowance details{margin-top:8px}.market-allowance>p{margin:0 0 8px}:is(.site-header,.topbar)>.header-account{animation:none!important;translate:none!important;scale:none!important;opacity:1!important}
 
-/* Temporary account UI pause; market-data authorization stays enforced. */
-.sign-in-hidden :is(.header-account,.nav-account,.account-area,#accountPanel,#authSignedOut,#authSignedIn,a[href="/account.html"],a[href="/account.html#settings"]){display:none!important}
 
 /* Keep the moving design without repainting filtered SVG paths each frame. */
 .market-flow-backdrop{contain:strict}
