@@ -4,6 +4,8 @@ const path = require("path");
 const { AsyncLocalStorage } = require("node:async_hooks");
 const { createMarketAccess, createRpc } = require("./market-access");
 const marketContext = new AsyncLocalStorage();
+const { browserIdentity } = require("./guest-market");
+const temporaryGuestAccess=()=>getEnv("MARKET_GUEST_ACCESS")==="true";
 const { summarizeStatements, createBudget } = require("./research");
 const { classifyProviderError } = require("./provider-errors");
 
@@ -32,7 +34,8 @@ app.get("/api/config", (_req, res) => {
   res.json({
     supabaseUrl: authConfigured ? supabaseUrl : null,
     supabaseAnonKey: authConfigured ? supabaseAnonKey : null,
-    authConfigured
+    authConfigured,
+    temporaryGuestAccess: temporaryGuestAccess()
   });
 });
 
@@ -107,10 +110,12 @@ function validSymbol(value) {
 // Quotas and cache reservations are persistent and atomic across server instances.
 const takeMarketRequest = createBudget(120, 60 * 1000);
 const marketPaths = ["/api/quote", "/api/daily", "/api/fundamentals", "/api/news", "/api/company-analysis", "/api/market-usage"];
-app.use(marketPaths, requireAuth, (req,res,next) => {
+app.use(marketPaths, (req,res,next)=>{if(temporaryGuestAccess()){req.authUser={id:"guest-user",isGuest:true};return next();}return requireAuth(req,res,next);}, (req,res,next) => {
  res.set("Cache-Control","private, no-store");
  if(!takeMarketRequest()){res.set("Retry-After","60");return res.status(429).json({error:"Please wait a minute before making more requests."});}
- const context={userId:req.authUser?.isGuest?null:req.authUser?.id,reads:[]};
+ let identity=req.authUser?.isGuest?null:req.authUser?.id;
+ if(temporaryGuestAccess()){try{identity=browserIdentity(req,res,getEnv("MARKET_CACHE_SECRET"));}catch(e){return res.status(503).json({error:e.message});}}
+ const context={userId:identity,reads:[]};
  const original=res.json.bind(res);
  res.json=data=>{
   if(data&&typeof data==="object"&&context.reads.length){
@@ -132,11 +137,11 @@ const CACHE_TTL_MS = {
  "cash-flow-statement":24*60*60*1000
 };
 const marketAccess=createMarketAccess({
- rpc:args=>createRpc({url:getEnv("SUPABASE_URL"),key:getEnv("SUPABASE_ANON_KEY"),secret:getEnv("MARKET_CACHE_SECRET")})(args),
+ rpc:args=>createRpc({url:getEnv("SUPABASE_URL"),key:getEnv("SUPABASE_ANON_KEY"),secret:getEnv("MARKET_CACHE_SECRET"),guest:temporaryGuestAccess()})(args),
  fetchProvider:fetchFmpProvider
 });
-app.get("/api/market-usage",async(_req,res)=>{
- try{res.json(await marketAccess.usage(marketContext.getStore()?.userId));}
+app.get("/api/market-usage",async(req,res)=>{
+ try{const usage=await marketAccess.usage(marketContext.getStore()?.userId);usage.guestAccess=temporaryGuestAccess();usage.signedIn=!req.authUser?.isGuest;res.json(usage);}
  catch(e){res.status(e.status||503).json({error:"Market-data limits are temporarily unavailable. No new provider calls will be made."});}
 });
 
