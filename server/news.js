@@ -10,7 +10,7 @@ function normalizeNews(data,symbol=""){
  }).filter(Boolean).sort((a,b)=>String(b.publishedDate).localeCompare(String(a.publishedDate))).slice(0,12);
 }
 module.exports={normalizeNews};function parsePublisherFeed(xml){
- const decode=s=>String(s||'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+ const decode=s=>String(s||'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;|&#39;/g,"'");
  const tag=(s,name)=>decode((s.match(new RegExp('<'+name+'(?:\\s[^>]*)?>([\\s\\S]*?)</'+name+'>','i'))||[])[1]);
  return normalizeNews((String(xml).match(/<item\b[^>]*>[\s\S]*?<\/item>/gi)||[]).map(item=>({title:tag(item,'title'),url:tag(item,'link'),publishedDate:(()=>{const d=new Date(tag(item,'pubDate'));return Number.isFinite(d.getTime())?d.toISOString():'';})(),description:tag(item,'description'),publisher:'CNBC',image:decode((item.match(/<(?:media:content|media:thumbnail|enclosure)\b[^>]*\burl=["']([^"']+)["']/i)||[])[1])})));
 }
@@ -18,7 +18,7 @@ let publisherCache=null,publisherPending=null;
 async function latestPublisherNews(){
  if(publisherCache&&publisherCache.until>Date.now())return publisherCache.articles;
  if(publisherPending)return publisherPending;
- publisherPending=(async()=>{const r=await fetch('https://www.cnbc.com/id/100003114/device/rss/rss.html',{headers:{Accept:'application/rss+xml,application/xml,text/xml'},signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error('Publisher news is temporarily unavailable. Please try again later.');const xml=await r.text();if(xml.length>2000000)throw Error('Publisher feed is too large.');const articles=parsePublisherFeed(xml);if(!articles.length)throw Error('No publisher stories are available yet.');publisherCache={articles,until:Date.now()+30*60*1000};return articles;})();
+ publisherPending=(async()=>{const r=await fetch('https://www.cnbc.com/id/100003114/device/rss/rss.html',{headers:{Accept:'application/rss+xml,application/xml,text/xml'},signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error('Publisher news is temporarily unavailable. Please try again later.');const xml=await r.text();if(xml.length>2000000)throw Error('Publisher feed is too large.');const articles=parsePublisherFeed(xml);if(!articles.length)throw Error('No publisher stories are available yet.');await Promise.all(articles.slice(0,6).map(async article=>{if(article.image)return;try{const url=new URL(article.url);if(url.hostname!=="www.cnbc.com")return;const page=await fetch(url,{signal:AbortSignal.timeout(4000),redirect:"error"});if(!page.ok)return;const html=(await page.text()).slice(0,2000000);const tag=html.match(/<meta\b[^>]*property=["']og:image["'][^>]*>/i)?.[0];const image=tag?.match(/content=["']([^"']+)/i)?.[1];if(image){const candidate=new URL(image);if(candidate.protocol==="https:"&&!candidate.username&&!candidate.password)article.image=candidate.href.replace(/&amp;/g,"&");}}catch{}}));publisherCache={articles,until:Date.now()+30*60*1000};return articles;})();
  try{return await publisherPending;}finally{publisherPending=null;}
 }
 module.exports.parsePublisherFeed=parsePublisherFeed;
