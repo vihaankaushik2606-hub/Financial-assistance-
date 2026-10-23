@@ -133,100 +133,21 @@ select,
 }
 
 
-/* Scroll focus: content gently grows at the viewport centre, then shrinks as it passes. */
-@supports (animation-timeline: view()) {
-  .panel,
-  .account-card,
-  .report-preview,
-  .metric,
-  .finding,
-  .statement,
-  .feature-card,
-  .feature-item,
-  .report-card,
-  .analysis-card,
-  .insight-card,
-  .stat-card,
-  .result-card {
-    animation-name: scroll-center-focus;
-    animation-duration: 1ms;
-    animation-timing-function: linear;
-    animation-fill-mode: both;
-    animation-timeline: view(block);
-    animation-range: entry 0% exit 100%;
-    transform-origin: center center;
-  }
-
-  @keyframes scroll-center-focus {
-    0% { scale: .88; }
-    50% { scale: 1; }
-    100% { scale: .88; }
-  }
+/* Centred focus: no sideways motion, no hidden text, and no nested scaling. */
+main :is(h1,h2,h3,h4,h5,h6,p,li,label,legend,blockquote,figcaption,dt,dd,th,td,summary,.eyebrow,.overline,.muted,.hero-note,.feature-number,.card-heading,.preview-top,.preview-bottom,.chart-legend,.notice,.account-benefits,.divider,.panel,.account-card,.report-preview,.metric,.finding,.statement,.feature-card,.feature-item,.report-card,.analysis-card,.insight-card,.stat-card,.result-card){
+ animation:none!important;translate:none!important;scale:1;opacity:1!important;
 }
-
-/* Respect accessibility preferences and avoid scroll-linked motion when reduced motion is enabled. */
-@media (prefers-reduced-motion: reduce) {
-  .panel,
-  .account-card,
-  .report-preview,
-  .metric,
-  .finding,
-  .statement,
-  .feature-card,
-  .feature-item,
-  .report-card,
-  .analysis-card,
-  .insight-card,
-  .stat-card,
-  .result-card {
-    animation: none !important;
-    scale: 1 !important;
+@keyframes centered-pop {0%{scale:.9}50%{scale:1}100%{scale:.9}}
+@media(prefers-reduced-motion:no-preference){
+ @supports(animation-timeline:view()){
+  html:not(.reduce-motion) :is(.landing-market-page .hero-copy,.landing-market-page .report-preview,.floating-subpage .hero,.floating-subpage .panel,.section-heading,.closing){
+   animation:centered-pop 1ms linear both!important;
+   animation-timeline:view(block)!important;animation-range:entry 0% exit 100%!important;
+   transform-origin:center center;translate:none!important;
   }
+  html:not(.reduce-motion) :is(.panel,.hero-copy,.report-preview):focus-within{animation:none!important;scale:1!important}
+ }
 }
-
-
-/* Pop-up text focus: every text block grows near the viewport centre and recedes as it scrolls past. */
-@supports (animation-timeline: view()) {
-  body :is(
-    h1, h2, h3, h4, h5, h6,
-    p, li, label, legend, blockquote, figcaption,
-    dt, dd, th, td, summary,
-    .eyebrow, .overline, .muted, .hero-note,
-    .feature-number, .card-heading, .preview-top,
-    .preview-bottom, .chart-legend, .notice,
-    .account-benefits, .divider
-  ) {
-    animation: text-scroll-pop 1ms linear both;
-    animation-timeline: view(block);
-    animation-range: entry 0% exit 100%;
-    transform-origin: center center;
-  }
-
-  @keyframes text-scroll-pop {
-    0%, 12% { opacity:0; translate:var(--text-entry-x, 180px) var(--text-entry-y, 100px); scale:.94; }
-    35% { opacity:1; translate:0 0; scale:1; }
-    50% { opacity:1; translate:0 0; scale:1.08; }
-    65% { opacity:1; translate:0 0; scale:1; }
-    88%, 100% { opacity:0; translate:var(--text-exit-x, -180px) var(--text-exit-y, -100px); scale:.96; }
-  }
-}
-
-/* Keep all text at its natural size when reduced motion is requested. */
-@media (prefers-reduced-motion: reduce) {
-  body :is(
-    h1, h2, h3, h4, h5, h6,
-    p, li, label, legend, blockquote, figcaption,
-    dt, dd, th, td, summary,
-    .eyebrow, .overline, .muted, .hero-note,
-    .feature-number, .card-heading, .preview-top,
-    .preview-bottom, .chart-legend, .notice,
-    .account-benefits, .divider
-  ) {
-    animation: none !important;
-    scale: 1 !important;
-  }
-}
-
 /* Floating typography: no card, divider or control boxes. */
 :is(.site-header,.site-footer,.quick-nav,.principles,.features,
 .features article,.preview-top,.preview-bottom,.research-prompt,

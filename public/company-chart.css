@@ -14,3 +14,8 @@
 
 /* Composite the provider's dark canvas against the moving page backdrop. */
 .company-price-section { mix-blend-mode:screen; }
+
+/* Open chart surface. Provider-controlled iframe UI remains separate. */
+.company-price-section,#companyPriceChart,#companyPriceChart .tradingview-widget-container,#companyPriceChart .tradingview-widget-container__widget,#companyPriceChart iframe{border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;background:transparent!important}
+#companyPriceChart{max-width:100%;overflow:hidden}
+.tradingview-widget-copyright{font-size:11px;line-height:24px;margin:0}
