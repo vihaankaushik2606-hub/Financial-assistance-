@@ -4,6 +4,8 @@ const $ = (id) => (window.$ ? window.$(id) : document.getElementById(id));
 const esc = (v) => (window.esc ? window.esc(v) : String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])));
 
 const API_BASE_URL = "";
+let selectedCompanyContext={symbol:"",quote:null,statements:null};
+let automaticAiRetryAfter=0;
 
 // Number formatting helpers
 const fmt = (v, digits = 2) => {
@@ -39,10 +41,15 @@ function metric(label, value, sub = "") {
 }
 
 async function api(path) {
-  const r = await fetch(`${API_BASE_URL}${path}`);
-  const d = await r.json().catch(() => ({ error: "The server returned an unreadable response." }));
-  if (!r.ok) throw new Error(d.error || `Request failed (${r.status})`);
-  return d;
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),25000);
+  try{
+   const r = await fetch(`${API_BASE_URL}${path}`,{signal:controller.signal});
+   const d = await r.json().catch(() => ({ error: "The server returned an unreadable response." }));
+   if (!r.ok) throw new Error(d.error || `Request failed (${r.status})`);
+   return d;
+  }catch(error){if(error.name==="AbortError")throw new Error("This request took too long. Please try again.");throw error;}
+  finally{clearTimeout(timeout);}
 }
 
 async function checkHealth() {
@@ -107,7 +114,10 @@ $("loadBtn")?.addEventListener("click", async () => {
 
   try {
     const q = await api(`/api/quote?symbol=${encodeURIComponent(requestedSymbol)}`);
+    if(getSymbol()!==requestedSymbol)return;
     const x = q.quote?.raw || {};
+    selectedCompanyContext.quote=x;
+    selectedCompanyContext.quoteIsDemo=!!q.isDemo;
     const timestamp = x.timestamp ? new Date(Number(x.timestamp) * 1000) : null;
     const updated = timestamp && Number.isFinite(timestamp.getTime()) ? timestamp.toLocaleString() : "Recent";
     const changePct = x.changePercentage !== undefined && x.changePercentage !== null ? formatPercent(x.changePercentage) : "—";
@@ -136,11 +146,12 @@ $("loadBtn")?.addEventListener("click", async () => {
         : `Market quote for ${x.symbol || q.symbol}. ${q.marketData?.stale ? "Older saved data; refresh unavailable. " : ""}Fetched ${q.fetchedAt ? new Date(q.fetchedAt).toLocaleString() : "at an unavailable time"}. Source: Financial Modeling Prep.`;
     }
   } catch (e) {
-    if (messageEl) messageEl.textContent = `Could not load quote: ${e.message}`;
+    if (getSymbol()===requestedSymbol && messageEl) messageEl.textContent = `Could not load quote: ${e.message}`;
   } finally {
-    await loadLinkedNumbers(requestedSymbol);
+    if(getSymbol()===requestedSymbol) await loadLinkedNumbers(requestedSymbol);
     if (loadBtn) loadBtn.disabled = false;
-    if (getSymbol() === requestedSymbol) void runAutomaticCompanyAnalysis();
+    if(getSymbol() && getSymbol()!==requestedSymbol) loadBtn?.click();
+    else if (getSymbol() === requestedSymbol) void runAutomaticCompanyAnalysis({automatic:true});
   }
 });
 
@@ -314,6 +325,7 @@ async function loadLinkedNumbers(ticker) {
   try {
     const d = await api(`/api/fundamentals?symbol=${encodeURIComponent(ticker)}`);
     if (getSymbol() !== ticker) return;
+    selectedCompanyContext.statements=d;
     renderFinancialAnalysis(d);
     if (d.isDemo) throw new Error("Only demo statements are available. Automatic ratios need reported company figures.");
     const statements = d.statements || {};
@@ -360,6 +372,7 @@ let autoAnalysisInFlight = false;
 let autoAnalysisRequest = 0;
 let autoAnalysisController = null;
 function syncCompanyOverview(ticker) {
+ selectedCompanyContext={symbol:ticker,quote:null,statements:null};
  autoAnalysisRequest++;
  autoAnalysisController?.abort();
  autoAnalysisInFlight=false;
@@ -368,7 +381,7 @@ function syncCompanyOverview(ticker) {
  if($("autoAnalysisStatus")) $("autoAnalysisStatus").textContent=`Company overview linked to ${ticker}. Loading its financial figures…`;
  if($("autoAnalyzeBtn")) $("autoAnalyzeBtn").disabled=false;
 }
-async function runAutomaticCompanyAnalysis() {
+async function runAutomaticCompanyAnalysis({automatic=false}={}) {
   const company = autoCompanyInput?.value.trim();
   const button = $("autoAnalyzeBtn");
   const outputEl = $("autoAnalysisOutput");
@@ -381,7 +394,10 @@ async function runAutomaticCompanyAnalysis() {
   }
 
   const requestId=++autoAnalysisRequest;
-  autoAnalysisController=new AbortController();
+  if(automatic && Date.now()<automaticAiRetryAfter){renderAvailableCompanySummary(company,"AI is temporarily unavailable. You can retry with Analyze company.");return;}
+  const controller=new AbortController();
+  autoAnalysisController=controller;
+  const analysisTimeout=setTimeout(()=>controller.abort(),45000);
   autoAnalysisInFlight = true;
   if (button) button.disabled = true;
   if (outputEl) outputEl.hidden = true;
@@ -395,13 +411,13 @@ async function runAutomaticCompanyAnalysis() {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`
       },
-      signal: autoAnalysisController.signal,
+      signal: controller.signal,
       body: JSON.stringify({ company })
     });
 
     const data = await response.json().catch(() => ({}));
     if(requestId!==autoAnalysisRequest || autoCompanyInput?.value.trim()!==company)return;
-    if (!response.ok) throw new Error(data.error || "Analysis could not be generated.");
+    if (!response.ok) {if(response.status===429){automaticAiRetryAfter=Date.now()+5*60*1000;throw new Error("AI commentary is temporarily unavailable. You can retry later.");}throw new Error(data.error || "Analysis could not be generated.");}
 
     if (outputEl) {
       outputEl.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.7;">${esc(data.answer)}</div>`;
@@ -416,12 +432,31 @@ async function runAutomaticCompanyAnalysis() {
       statusEl.textContent = data.dataNote || "Analysis generated. Confirm important metrics against audited filings.";
     }
   } catch (error) {
-    if(requestId!==autoAnalysisRequest || error.name==="AbortError")return;
-    if (statusEl) statusEl.textContent = error.message || "Automatic analysis failed.";
+    if(requestId!==autoAnalysisRequest)return;
+    renderAvailableCompanySummary(company,error.name==="AbortError"?"AI response took too long. You can retry.":error.message || "AI is temporarily unavailable.");
   } finally {
+    clearTimeout(analysisTimeout);
     if(requestId===autoAnalysisRequest){autoAnalysisInFlight = false;
     if (button) button.disabled = false;}
   }
+}
+
+function renderAvailableCompanySummary(company,reason){
+ const output=$("autoAnalysisOutput"),status=$("autoAnalysisStatus");
+ if(company.toUpperCase()!==selectedCompanyContext.symbol || (!selectedCompanyContext.quote && !selectedCompanyContext.statements)){
+  if(status)status.textContent=reason;return;
+ }
+ const q=selectedCompanyContext.quote||{},d=selectedCompanyContext.statements;
+ const rows=d?.statements?.incomeStatement?.available?d.statements.incomeStatement.annualReports||[]:[];
+ const latest=rows.filter(r=>r.date&&(!r.symbol||r.symbol===selectedCompanyContext.symbol)).sort((a,b)=>b.date.localeCompare(a.date))[0];
+ const facts=[];
+ if(q.name)facts.push(["Company",q.name]);
+ facts.push(["Ticker",selectedCompanyContext.symbol]);
+ if(q.exchange)facts.push(["Exchange",q.exchange]);
+ if(q.price!==null&&q.price!==undefined)facts.push(["Last available price",quoteNumber(q.price)+" "+(q.currency||"USD")]);
+ if(latest){facts.push(["Statement period",latest.date]);if(latest.revenue!==null&&latest.revenue!==undefined)facts.push(["Revenue",quoteNumber(latest.revenue)+" "+(latest.reportedCurrency||"currency unavailable")]);if(latest.netIncome!==null&&latest.netIncome!==undefined)facts.push(["Net income",quoteNumber(latest.netIncome)+" "+(latest.reportedCurrency||"currency unavailable")]);}
+ if(output){output.innerHTML="<h3>Available company data</h3><p>"+esc((d?.isDemo||selectedCompanyContext.quoteIsDemo)?"Illustrative sample figures — not company filings.":"Source: Financial Modeling Prep. Verify figures against official filings.")+"</p>"+facts.map(([k,v])=>"<p><strong>"+esc(k)+":</strong> "+esc(v)+"</p>").join("");output.hidden=false;}
+ if(status)status.textContent="Showing available figures without AI commentary. "+reason;
 }
 
 $("autoAnalyzeBtn")?.addEventListener("click", runAutomaticCompanyAnalysis);
