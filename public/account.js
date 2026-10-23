@@ -7,6 +7,8 @@ window.esc = esc;
 
 let supabaseClient = null;
 let currentSession = null;
+let authMode = "signin";
+let authBusy = false;
 const LOCAL_STORAGE_HISTORY_KEY = "ai_finance_lab_history";
 
 const profileLink = document.createElement("a");
@@ -25,10 +27,10 @@ async function initAccount() {
 
     if (!config.authConfigured || !window.supabase?.createClient) {
       if (setup) {
-        setup.innerHTML = "✨ <b>Guest Mode Active:</b> You can use research tools, financial calculators, and AI assistance freely. (Configure Supabase in <code>.env</code> if you wish to sync history across devices.)";
+        setup.textContent = "Account service could not load. Refresh the page or try another browser.";
       }
       if ($("authStatus")) {
-        $("authStatus").textContent = "Guest mode active. Your research will be saved locally on this device.";
+        $("authStatus").textContent = "Sign-in is unavailable until the account service loads.";
       }
       loadPrivateHistory();
       return;
@@ -42,7 +44,8 @@ async function initAccount() {
       setup.textContent = "Account service ready. Sign in with email or Google to sync your saved research across devices.";
     }
 
-    const { data } = await supabaseClient.auth.getSession();
+    const { data, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError) throw sessionError;
     currentSession = data.session;
     renderAccount(currentSession);
 
@@ -52,7 +55,7 @@ async function initAccount() {
     });
   } catch (_error) {
     if (setup) {
-      setup.textContent = "Guest mode active. Research tools are ready to use.";
+      setup.textContent = "Could not connect to the account service. Refresh the page and try again.";
     }
     loadPrivateHistory();
   }
@@ -63,11 +66,21 @@ function renderAccount(session) {
   profileLink.classList.toggle("signed-in", Boolean(session));
   profileLink.setAttribute("aria-label", session ? "View your account details" : "Sign in or create an account");
   profileLink.title = session ? "Your account details" : "Sign in";
+  const displayName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || session?.user?.email?.split("@")[0] || "Your account";
+  document.querySelectorAll(".profile-link,.header-account").forEach(link => {
+    let label=link.querySelector(".account-label");
+    if(!label){label=document.createElement("span");label.className="account-label";link.append(label);}
+    label.textContent=session ? displayName : "Sign in";
+    link.setAttribute("aria-label",session ? "Your account: "+displayName : "Sign in or create an account");
+  });
+  if($("profileNameInput")) $("profileNameInput").value = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || "";
+  document.querySelector(".auth-mode")?.toggleAttribute("hidden",Boolean(session));
+  if($("authIntro")) $("authIntro").hidden=Boolean(session);
 
-  if ($("accountHeading")) $("accountHeading").textContent = session ? "Your account details" : "Sign in or create an account.";
+  if ($("accountHeading")) $("accountHeading").textContent = session ? "Your account details" : authMode === "signup" ? "Create account" : "Sign in";
   if ($("profileEmail")) {
     const user = session?.user;
-    $("profileName").textContent = user?.user_metadata?.full_name || user?.user_metadata?.name || "Not provided";
+    $("profileName").textContent = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Add your name above";
     $("profileEmail").textContent = user?.email || "Not provided";
     const joined = user?.created_at ? new Date(user.created_at) : null;
     $("profileJoined").textContent = joined && Number.isFinite(joined.getTime()) ? joined.toLocaleDateString() : "Unavailable";
@@ -81,11 +94,11 @@ function renderAccount(session) {
   if (navAccount) navAccount.textContent = session ? "Your account" : "Sign in";
 
   if (session) {
-    if ($("accountIdentity")) $("accountIdentity").textContent = `Signed in as ${session.user.email || "Google account"}`;
+    if ($("accountIdentity")) $("accountIdentity").textContent = `Welcome, ${displayName}. Signed in as ${session.user.email || "Google account"}`;
     if ($("authStatus")) $("authStatus").textContent = "Signed in. Cloud synchronization active for this account.";
     setTimeout(loadPrivateHistory, 0);
   } else {
-    if ($("authStatus")) $("authStatus").textContent = "Guest mode active. Sign in to sync your private history across devices.";
+    if ($("authStatus")) $("authStatus").textContent = "Sign in to your existing account, or choose Create account if you are new.";
     loadPrivateHistory();
   }
 }
@@ -188,9 +201,10 @@ function renderHistoryItems(container, items) {
 }
 
 async function runAuthAction(action) {
+  if(authBusy) return;
   if (!supabaseClient) {
     if ($("authStatus")) {
-      $("authStatus").textContent = "Supabase is not configured yet. Add SUPABASE_URL and SUPABASE_ANON_KEY to .env to enable user accounts.";
+      $("authStatus").textContent = "Account service is not ready. Refresh the page and try again.";
     }
     return;
   }
@@ -198,15 +212,20 @@ async function runAuthAction(action) {
   const password = $("authPassword")?.value || "";
   if ($("authStatus")) $("authStatus").textContent = "Processing…";
 
+  authBusy=true;
+  document.querySelectorAll(".auth-actions button,#googleSignInBtn").forEach(b=>b.disabled=true);
   try {
     let result;
     if (action === "signup") {
-      if (!email || password.length < 8) throw new Error("Please enter a valid email and a password with at least 8 characters.");
-      result = await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
+      if (!$("authEmail")?.checkValidity() || !email || password.length < 8) throw new Error("Enter a valid email and a password with at least 8 characters.");
+      const fullName=$("authName")?.value.trim();
+      if(!fullName) throw new Error("Enter your name to create your account.");
+      result = await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + "/account.html", data: {full_name:fullName} } });
       if (result.error) throw result.error;
-      if ($("authStatus")) $("authStatus").textContent = result.data.session ? "Account created and signed in!" : "Account created! Check your email inbox to confirm your account.";
+      if ($("authStatus")) $("authStatus").textContent = result.data.session ? "Account created and signed in!" : "Check your inbox and spam folder for the confirmation email. Open its link, then sign in. If you already registered, choose Sign in.";
       if (result.data.session) window.location.assign("/");
     } else if (action === "signin") {
+      if(!email || !password || !$("authEmail")?.checkValidity()) throw new Error("Enter your email and password to sign in.");
       result = await supabaseClient.auth.signInWithPassword({ email, password });
       if (result.error) throw result.error;
       if ($("authStatus")) $("authStatus").textContent = "Signed in successfully!";
@@ -223,7 +242,10 @@ async function runAuthAction(action) {
       if ($("authStatus")) $("authStatus").textContent = "You have signed out.";
     }
   } catch (error) {
-    if ($("authStatus")) $("authStatus").textContent = error.message || "Account action failed. Please try again.";
+    if ($("authStatus")) $("authStatus").textContent = error.code === "email_not_confirmed" ? "Confirm your email first: open the confirmation link in your inbox or spam folder, then sign in." : error.code === "invalid_credentials" ? "Could not sign in. Check your email and password. If you used Google to register, use Continue with Google." : error.message || "Account action failed. Please try again.";
+  } finally {
+    authBusy=false;
+    document.querySelectorAll(".auth-actions button,#googleSignInBtn").forEach(b=>b.disabled=false);
   }
 }
 
@@ -243,3 +265,31 @@ if (document.readyState === "loading") {
   startFinanceAccount();
 }
 
+
+function setAuthMode(mode) {
+ authMode=mode;
+ if($("signupName")) $("signupName").hidden=mode!=="signup";
+ if($("signUpBtn")) $("signUpBtn").hidden=mode!=="signup";
+ if($("signInBtn")) $("signInBtn").hidden=mode!=="signin";
+ if($("accountHeading")) $("accountHeading").textContent=mode==="signup"?"Create account":"Sign in";
+ if($("authIntro")) $("authIntro").textContent=mode==="signup"?"New here? Create your tester account.":"Already registered? Sign in below.";
+ $("showSignIn")?.setAttribute("aria-pressed",String(mode==="signin"));
+ $("showSignUp")?.setAttribute("aria-pressed",String(mode==="signup"));
+ $("authPassword")?.setAttribute("autocomplete",mode==="signup"?"new-password":"current-password");
+ if($("authStatus")) $("authStatus").textContent=mode==="signup"?"After registering, check your email to confirm your account.":"Enter the email and password you registered with.";
+}
+$("showSignIn")?.addEventListener("click",()=>setAuthMode("signin"));
+$("showSignUp")?.addEventListener("click",()=>setAuthMode("signup"));
+$("authPassword")?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();runAuthAction(authMode);}});
+$("saveProfileName")?.addEventListener("click",async()=>{
+ const name=$("profileNameInput")?.value.trim();
+ if(!name || !supabaseClient || !currentSession){$("authStatus").textContent="Enter your name while signed in.";return;}
+ $("saveProfileName").disabled=true;
+ try {
+  const {data,error}=await supabaseClient.auth.updateUser({data:{full_name:name}});
+  if(error)throw error;
+  currentSession={...currentSession,user:data.user};renderAccount(currentSession);
+  $("authStatus").textContent="Your name has been saved.";
+ }catch(error){$("authStatus").textContent=error.message||"Could not save your name.";}
+ finally{$("saveProfileName").disabled=false;}
+});
