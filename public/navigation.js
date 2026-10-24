@@ -127,3 +127,5 @@ if(!["news.html","financial-instruments.html","dashboard.html"].includes(page)){
  if(status)new MutationObserver(auto).observe(status,{childList:true,subtree:true,characterData:true});auto();
 }
 })();
+
+(()=>{for(const nav of document.querySelectorAll(".site-header nav,.subpage-header-nav,.workspace-nav")){if(nav.querySelector('a[href="/situation-calculator.html"]'))continue;const a=document.createElement("a");a.href="/situation-calculator.html";a.textContent="Situation Calculator";if(location.pathname==="/situation-calculator.html")a.setAttribute("aria-current","page");nav.append(a);}})();
