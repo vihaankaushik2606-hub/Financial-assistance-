@@ -54,3 +54,5 @@ document.documentElement.classList.remove("sign-in-hidden");
 (()=>{for(const n of document.querySelectorAll(".workspace-nav")){if(n.querySelector('a[href="/company-evaluation.html"]'))continue;const a=document.createElement("a");a.href="/company-evaluation.html";a.textContent="Company Evaluation";if(location.pathname==="/company-evaluation.html")a.setAttribute("aria-current","page");n.append(a);}})();
 
 (()=>{const nav=document.querySelector(".site-header nav,.subpage-header-nav,.quick-nav");if(nav&&!nav.querySelector('a[href="/company-evaluation.html"]')){const a=document.createElement("a");a.href="/company-evaluation.html";a.textContent="Company Evaluation";if(location.pathname==="/company-evaluation.html")a.setAttribute("aria-current","page");nav.append(a);}})();
+
+(()=>{const nav=document.querySelector(".site-header nav,.subpage-header-nav");const link=nav?.querySelector('a[href="/company-evaluation.html"]');if(!link)return;link.style.setProperty("display","inline-flex","important");nav.style.flexWrap="wrap";const header=nav.closest("header");if(header)header.style.flexWrap="wrap";})();
