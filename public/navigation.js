@@ -52,3 +52,5 @@ document.documentElement.classList.remove("sign-in-hidden");
 (()=>{const main=document.querySelector("main");if(main&&!document.querySelector('[data-source-credit]')){const p=document.createElement("p");p.dataset.sourceCredit="true";p.style.cssText="text-align:center;padding:2rem 1rem;font-size:.9rem";const a=document.createElement("a");a.href="/sources.html";a.textContent="Sources & credits · CNBC · TradingView · FMP";p.append(a);main.append(p);}})();
 
 (()=>{for(const n of document.querySelectorAll(".workspace-nav")){if(n.querySelector('a[href="/company-evaluation.html"]'))continue;const a=document.createElement("a");a.href="/company-evaluation.html";a.textContent="Company Evaluation";if(location.pathname==="/company-evaluation.html")a.setAttribute("aria-current","page");n.append(a);}})();
+
+(()=>{const nav=document.querySelector(".site-header nav,.subpage-header-nav,.quick-nav");if(nav&&!nav.querySelector('a[href="/company-evaluation.html"]')){const a=document.createElement("a");a.href="/company-evaluation.html";a.textContent="Company Evaluation";if(location.pathname==="/company-evaluation.html")a.setAttribute("aria-current","page");nav.append(a);}})();
