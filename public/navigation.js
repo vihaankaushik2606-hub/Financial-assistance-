@@ -48,3 +48,5 @@ document.documentElement.classList.remove("sign-in-hidden");
 (()=>{for(const nav of document.querySelectorAll(".workspace-nav")){if(nav.querySelector('a[href="/compare-health.html"]'))continue;const a=document.createElement("a");a.href="/compare-health.html";a.textContent="Compare & Health";if(location.pathname==="/compare-health.html")a.setAttribute("aria-current","page");nav.append(a);}})();
 
 (()=>{const nav=document.querySelector(".site-header nav,.subpage-header-nav,.quick-nav");if(nav&&!nav.querySelector('a[href="/pricing.html"]')){const a=document.createElement("a");a.href="/pricing.html";a.textContent="Pricing";if(location.pathname==="/pricing.html")a.setAttribute("aria-current","page");nav.append(a);}})();
+
+(()=>{const main=document.querySelector("main");if(main&&!document.querySelector('[data-source-credit]')){const p=document.createElement("p");p.dataset.sourceCredit="true";p.style.cssText="text-align:center;padding:2rem 1rem;font-size:.9rem";const a=document.createElement("a");a.href="/sources.html";a.textContent="Sources & credits · CNBC · TradingView · FMP";p.append(a);main.append(p);}})();
