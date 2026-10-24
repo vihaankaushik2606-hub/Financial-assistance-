@@ -98,19 +98,19 @@ for(const [id,label,meaning,...context] of defs){
  const target=$(id);if(!target)continue;
  const section=document.createElement("section");section.className="analysis-summary";section.style.cssText=intro.style.cssText;
  const h=document.createElement("h3"),p=document.createElement("p"),result=document.createElement("p"),basis=document.createElement("p");h.textContent=label+" — in plain language";p.textContent=meaning;basis.className="muted";section.append(h,p,result,basis);target.after(section);
- function update(){const value=text(target);result.textContent=value?"Current results: "+value:"Load or calculate this analysis to see a summary of its results.";basis.textContent=context.map(x=>text($(x))).filter(Boolean).join(" "); }
+ function update(){const value=text(target);const table=target.querySelector("table");let brief=value;if(table){const rows=[...table.querySelectorAll("tbody tr")];brief=rows.slice(0,4).map(row=>[...row.children].map(cell=>cell.textContent.replace(/\s+/g," ").trim()).join(": ")).join("; ")+(rows.length>4?"; more figures are listed above.":".");}else{brief=(value.match(/[^.!?]+[.!?]+|[^.!?]+$/g)||[value]).slice(0,3).join(" ").trim();}result.textContent=value?"Current results: "+brief:"Load or calculate this analysis to see a summary of its results.";basis.textContent=context.map(x=>text($(x))).filter(Boolean).join(" "); }
  const observer=new MutationObserver(update);observer.observe(target,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:["hidden"]});
  for(const x of context)if($(x))observer.observe($(x),{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:["hidden"]});
  const container=target.closest("[hidden]");if(container)observer.observe(container,{attributes:true,attributeFilter:["hidden"]});update();
 }
 if(!["news.html","financial-instruments.html","dashboard.html"].includes(page)){
  const h=document.createElement("h3"),p=document.createElement("p"),button=document.createElement("button"),out=document.createElement("div");
- h.textContent="How does this company work?";p.textContent="Explain its products or services, customers, revenue model, main costs and business risks. Generates an unverified AI explanation only when you click; uses available AI credits. Your notebook notes are not sent.";
- button.type="button";button.textContent="Explain company business ↗";out.setAttribute("role","status");intro.append(h,p,button,out);
+ h.textContent="How does this company work?";p.textContent="Explain its products or services, customers, revenue model, main costs and business risks. An unverified AI business explanation loads automatically with the analysis. Your notebook notes are not sent.";
+ button.type="button";button.textContent="Explain company business ↗";out.setAttribute("role","status");intro.append(h,p,out);
  const input=$("evaluationSymbol")||$("companyA")||$("labSymbol")||$("toolSymbol");
  let revision=0;
  input?.addEventListener("input",()=>{revision++;out.textContent="";});
- button.addEventListener("click",async()=>{
+ async function explainBusiness(){
  const company=input?.value.trim().toUpperCase();if(!company||!/^[A-Z0-9][A-Z0-9.:-]{0,23}$/.test(company)){out.textContent="Enter the company ticker above first.";return;}
  const version=++revision;button.disabled=true;out.textContent="Explaining "+company+"…";
  try{
@@ -120,6 +120,10 @@ if(!["news.html","financial-instruments.html","dashboard.html"].includes(page)){
  out.textContent=company+" — AI-generated, unverified business explanation: "+(d.answer||"No explanation returned. Check the company’s annual report.");
  }catch(e){if(version===revision)out.textContent="Business explanation unavailable. Read the company’s annual report for products, customers, revenue sources and risks. "+(e.name==="TimeoutError"?"Request timed out.":e.message);}
  finally{button.disabled=false;}
- });
+ }
+ const status=$("evaluationStatus")||$("toolkitStatus")||$("labStatus")||$("toolStatus");
+ let last="";
+ const auto=()=>{const value=status?.textContent||"",company=input?.value.trim().toUpperCase();if(!company||!(/loaded/i.test(value))||/loading|could not|unavailable/i.test(value))return;const key=company+"|"+value;if(key===last)return;last=key;explainBusiness();};
+ if(status)new MutationObserver(auto).observe(status,{childList:true,subtree:true,characterData:true});auto();
 }
 })();
